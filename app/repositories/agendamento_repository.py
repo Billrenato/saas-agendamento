@@ -27,15 +27,23 @@ class AgendamentoRepository(BaseRepository[Agendamento]):
         ).all()
     
     def check_conflict(self, empresa_id: int, data_hora: datetime, duracao_minutos: int) -> bool:
-        end_time = data_hora.replace(minute=data_hora.minute + duracao_minutos)
+        from datetime import timedelta
+        from sqlalchemy import and_
         
+        end_time = data_hora + timedelta(minutes=duracao_minutos)
+        
+        # Buscar todos agendamentos ativos da empresa
         agendamentos = self.db.query(Agendamento).filter(
             and_(
                 Agendamento.empresa_id == empresa_id,
-                Agendamento.data_hora < end_time,
-                Agendamento.data_hora + (Agendamento.servico.has(duracao_minutos=duracao_minutos)) > data_hora,
                 Agendamento.status.in_([StatusAgendamento.PENDENTE, StatusAgendamento.ACEITO])
             )
         ).all()
         
-        return len(agendamentos) > 0
+        # Verificar conflito em Python (mais simples e evita erros de SQL)
+        for ag in agendamentos:
+            ag_end = ag.data_hora + timedelta(minutes=ag.servico.duracao_minutos)
+            if (data_hora < ag_end and end_time > ag.data_hora):
+                return True
+        
+        return False

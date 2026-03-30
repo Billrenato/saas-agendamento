@@ -9,7 +9,7 @@ try:
         port=5432,
         database="saas_agendamento",
         user="postgres",
-        password="010203"  # senha que você definiu durante a instalação do PostgreSQL
+        password="@nota1000"  # senha que você definiu durante a instalação do PostgreSQL
     )
     
     conn.autocommit = True

@@ -14,8 +14,8 @@ try:
         host="localhost",
         port=5432,
         database="saas_agendamento",
-        user="saas_user",
-        password="senha123"
+        user="postgres",
+        password="@nota1000"
     )
     
     conn.autocommit = True
