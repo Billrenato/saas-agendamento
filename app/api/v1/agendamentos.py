@@ -5,6 +5,8 @@ from app.services.agendamento_service import AgendamentoService
 from app.schemas.agendamento import AgendamentoCreate, AgendamentoResponse, AgendamentoStatusUpdate, StatusAgendamento
 from app.api.deps import get_current_empresa
 from app.models.empresa import Empresa
+from app.models.servico import Servico
+from app.models.agendamento import Agendamento
 from typing import List
 
 router = APIRouter()
@@ -87,3 +89,41 @@ def update_agendamento_status(
         )
     
     return agendamento
+
+# Router público (sem autenticação)
+public_router = APIRouter(prefix="/public", tags=["Agendamentos Públicos"])
+
+@public_router.get("/consultar")
+def consultar_agendamentos_publico(
+    telefone: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint público para cliente consultar seus agendamentos por telefone
+    """
+    from app.models.empresa import Empresa
+    from app.models.servico import Servico
+    
+    telefone_limpo = ''.join(filter(str.isdigit, telefone))
+    
+    agendamentos = db.query(Agendamento).filter(
+        Agendamento.telefone_cliente == telefone_limpo
+    ).order_by(
+        Agendamento.data_hora.desc()
+    ).all()
+    
+    result = []
+    for ag in agendamentos:
+        empresa = db.query(Empresa).filter(Empresa.id == ag.empresa_id).first()
+        servico = db.query(Servico).filter(Servico.id == ag.servico_id).first()
+        
+        result.append({
+            "id": ag.id,
+            "empresa_nome": empresa.nome if empresa else "",
+            "servico_nome": servico.nome if servico else "",
+            "data_hora": ag.data_hora.strftime("%d/%m/%Y às %H:%M"),
+            "status": ag.status.value if hasattr(ag.status, 'value') else str(ag.status),
+            "criado_em": ag.criado_em.strftime("%d/%m/%Y %H:%M") if ag.criado_em else ""
+        })
+    
+    return {"agendamentos": result}

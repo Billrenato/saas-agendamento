@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1 import auth, empresas, servicos, agenda, agendamentos
+from app.api.v1.agendamentos import public_router
 
 app = FastAPI(
     title="SaaS Agendamento API",
@@ -26,6 +27,7 @@ app.include_router(empresas.router, prefix="/api/v1/empresas", tags=["Empresas"]
 app.include_router(servicos.router, prefix="/api/v1/servicos", tags=["Serviços"])
 app.include_router(agenda.router, prefix="/api/v1/agenda", tags=["Agenda"])
 app.include_router(agendamentos.router, prefix="/api/v1/agendamentos", tags=["Agendamentos"])
+app.include_router(public_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
