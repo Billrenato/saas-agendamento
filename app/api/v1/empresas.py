@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -7,6 +7,7 @@ from app.services.empresa_service import EmpresaService
 from app.schemas.empresa import EmpresaResponse
 from app.api.deps import get_current_empresa
 from app.models.empresa import Empresa
+
 
 router = APIRouter()
 
@@ -56,14 +57,31 @@ def get_horarios_disponiveis(
     return {"horarios": horarios}
 
 
+
 @router.get("/", response_model=List[EmpresaResponse])
 def listar_empresas(
     skip: int = 0,
     limit: int = 100,
+    segmento: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
     Endpoint público para listar todas as empresas ativas
     """
-    empresas = db.query(Empresa).filter(Empresa.ativo == True).offset(skip).limit(limit).all()
+    query = db.query(Empresa).filter(Empresa.ativo == True)
+    
+    if segmento:
+        query = query.filter(Empresa.segmento == segmento)
+    
+    empresas = query.offset(skip).limit(limit).all()
     return empresas
+
+@router.get("/segmentos")
+def listar_segmentos(
+    db: Session = Depends(get_db)
+):
+    """
+    Lista todos os segmentos disponíveis
+    """
+    segmentos = db.query(Empresa.segmento).filter(Empresa.segmento.isnot(None)).distinct().all()
+    return [s[0] for s in segmentos if s[0]]
