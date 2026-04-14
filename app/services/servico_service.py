@@ -14,8 +14,18 @@ class ServicoService:
             **servico_data.dict()
         )
     
-    def get_servicos_by_empresa(self, empresa_id: int) -> List[Servico]:
-        return self.servico_repo.get_by_empresa(empresa_id)
+    def get_servicos_by_empresa(self, empresa_id: int, apenas_ativos: bool = False) -> List[Servico]:
+        """Lista serviços da empresa"""
+        query = self.servico_repo.db.query(Servico).filter(Servico.empresa_id == empresa_id)
+        
+        if apenas_ativos:
+            query = query.filter(Servico.ativo == True)
+        
+        return query.all()
+    
+    """def get_servicos_by_empresa(self, empresa_id: int, apenas_ativos: bool = False) -> List[Servico]:
+    Lista serviços da empresa
+    return self.servico_repo.get_by_empresa(empresa_id, apenas_ativos)"""
     
     def get_servico(self, servico_id: int, empresa_id: int) -> Servico:
         servico = self.servico_repo.get(servico_id)

@@ -7,6 +7,8 @@ class ServicoBase(BaseModel):
     descricao: Optional[str] = None
     duracao_minutos: int
     preco: Optional[float] = None
+    ativo: Optional[bool] = True
+    imagem: Optional[str] = None
 
 class ServicoCreate(ServicoBase):
     pass

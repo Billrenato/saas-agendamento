@@ -1,5 +1,6 @@
 import psycopg2
 import bcrypt
+from datetime import datetime
 
 # Configuração do banco
 DB_CONFIG = {
@@ -7,16 +8,28 @@ DB_CONFIG = {
     "port": 5432,
     "database": "saas_agendamento",
     "user": "postgres",
-    "password": "@nota1000"
+    "password": "010203"
 }
 
 # Senha padrão para todas as empresas
 SENHA_PADRAO = "senha123"
 senha_hash = bcrypt.hashpw(SENHA_PADRAO.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-# Lista de empresas com dados completos - 20+ empresas
+# URLs de imagens para serviços
+IMAGENS_SERVICOS = {
+    "corte": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=400",
+    "manicure": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400",
+    "pedicure": "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=400",
+    "maquiagem": "https://images.unsplash.com/photo-1512496015851-a90fb38f796f?w=400",
+    "barba": "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400",
+    "massagem": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400",
+    "limpeza": "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=400",
+    "pilates": "https://images.unsplash.com/photo-1518611012118-696072aa03a1?w=400",
+}
+
+# Lista de empresas com dados completos - 25+ empresas
 empresas = [
-    # BELEZA
+    # BELEZA (6 empresas)
     {
         "nome": "Salão Beleza Total",
         "email": "contato@belezatotal.com",
@@ -30,11 +43,11 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1560066984-138dad7b1350?w=800",
         "logo": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=150",
         "servicos": [
-            ("Corte de Cabelo", "Corte masculino e feminino com acabamento profissional", 30, 50.00),
-            ("Manicure", "Cuidados completos para as mãos", 45, 35.00),
-            ("Pedicure", "Cuidados completos para os pés", 45, 40.00),
-            ("Maquiagem", "Maquiagem profissional para todas as ocasiões", 60, 80.00),
-            ("Penteado", "Penteados para festas e eventos", 45, 60.00),
+            ("Corte de Cabelo", "Corte masculino e feminino com acabamento profissional", 30, 50.00, IMAGENS_SERVICOS["corte"]),
+            ("Manicure", "Cuidados completos para as mãos", 45, 35.00, IMAGENS_SERVICOS["manicure"]),
+            ("Pedicure", "Cuidados completos para os pés", 45, 40.00, IMAGENS_SERVICOS["pedicure"]),
+            ("Maquiagem", "Maquiagem profissional para todas as ocasiões", 60, 80.00, IMAGENS_SERVICOS["maquiagem"]),
+            ("Penteado", "Penteados para festas e eventos", 45, 60.00, IMAGENS_SERVICOS["corte"]),
         ],
         "agenda": [(0, "09:00", "18:00"), (1, "09:00", "18:00"), (2, "09:00", "18:00"),
                    (3, "09:00", "18:00"), (4, "09:00", "18:00"), (5, "09:00", "14:00")]
@@ -52,10 +65,10 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=800",
         "logo": "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=150",
         "servicos": [
-            ("Corte Feminino", "Corte moderno e personalizado", 45, 70.00),
-            ("Coloração", "Tintura e mechas", 90, 120.00),
-            ("Escova", "Escova modeladora", 30, 45.00),
-            ("Hidratação", "Hidratação profunda", 60, 80.00),
+            ("Corte Feminino", "Corte moderno e personalizado", 45, 70.00, IMAGENS_SERVICOS["corte"]),
+            ("Coloração", "Tintura e mechas", 90, 120.00, IMAGENS_SERVICOS["corte"]),
+            ("Escova", "Escova modeladora", 30, 45.00, IMAGENS_SERVICOS["corte"]),
+            ("Hidratação", "Hidratação profunda", 60, 80.00, IMAGENS_SERVICOS["corte"]),
         ],
         "agenda": [(0, "09:00", "20:00"), (1, "09:00", "20:00"), (2, "09:00", "20:00"),
                    (3, "09:00", "20:00"), (4, "09:00", "20:00"), (5, "09:00", "16:00")]
@@ -73,15 +86,75 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1633681926022-84c23e8cb3d6?w=800",
         "logo": "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=150",
         "servicos": [
-            ("Depilação", "Depilação com cera", 45, 50.00),
-            ("Sobrancelha", "Design de sobrancelhas", 30, 35.00),
-            ("Maquiagem", "Maquiagem completa", 60, 90.00),
+            ("Depilação", "Depilação com cera", 45, 50.00, IMAGENS_SERVICOS["manicure"]),
+            ("Sobrancelha", "Design de sobrancelhas", 30, 35.00, IMAGENS_SERVICOS["maquiagem"]),
+            ("Maquiagem", "Maquiagem completa", 60, 90.00, IMAGENS_SERVICOS["maquiagem"]),
         ],
         "agenda": [(0, "10:00", "19:00"), (1, "10:00", "19:00"), (2, "10:00", "19:00"),
                    (3, "10:00", "19:00"), (4, "10:00", "19:00"), (5, "10:00", "15:00")]
     },
+    {
+        "nome": "Cabelo & Estilo",
+        "email": "contato@cabeloestilo.com",
+        "telefone": "11966665555",
+        "segmento": "Beleza",
+        "endereco": "Rua Treze de Maio, 100",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "01323-001",
+        "descricao": "Salão de beleza focado em cortes modernos e coloração.",
+        "foto_capa": "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=800",
+        "logo": "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=150",
+        "servicos": [
+            ("Corte Moderno", "Corte tendência", 45, 65.00, IMAGENS_SERVICOS["corte"]),
+            ("Mechas", "Mechas californianas", 120, 180.00, IMAGENS_SERVICOS["corte"]),
+            ("Progressiva", "Escova progressiva", 90, 150.00, IMAGENS_SERVICOS["corte"]),
+        ],
+        "agenda": [(0, "09:00", "19:00"), (1, "09:00", "19:00"), (2, "09:00", "19:00"),
+                   (3, "09:00", "19:00"), (4, "09:00", "19:00"), (5, "09:00", "15:00")]
+    },
+    {
+        "nome": "Studio Black Beauty",
+        "email": "contato@blackbeauty.com",
+        "telefone": "11955554444",
+        "segmento": "Beleza",
+        "endereco": "Rua Augusta, 800",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "01304-001",
+        "descricao": "Especialistas em cabelos cacheados e crespos.",
+        "foto_capa": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800",
+        "logo": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=150",
+        "servicos": [
+            ("Fitagem", "Definição de cachos", 60, 80.00, IMAGENS_SERVICOS["corte"]),
+            ("Hidratação", "Hidratação capilar", 45, 60.00, IMAGENS_SERVICOS["corte"]),
+            ("Transição", "Corte para transição", 60, 90.00, IMAGENS_SERVICOS["corte"]),
+        ],
+        "agenda": [(0, "10:00", "20:00"), (1, "10:00", "20:00"), (2, "10:00", "20:00"),
+                   (3, "10:00", "20:00"), (4, "10:00", "20:00"), (5, "10:00", "16:00")]
+    },
+    {
+        "nome": "Make Up Studio",
+        "email": "contato@makeupstudio.com",
+        "telefone": "11944443333",
+        "segmento": "Beleza",
+        "endereco": "Alameda Santos, 200",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "01419-001",
+        "descricao": "Studio especializado em maquiagem profissional.",
+        "foto_capa": "https://images.unsplash.com/photo-1512496015851-a90fb38f796f?w=800",
+        "logo": "https://images.unsplash.com/photo-1512496015851-a90fb38f796f?w=150",
+        "servicos": [
+            ("Maquiagem Social", "Maquiagem para eventos", 60, 100.00, IMAGENS_SERVICOS["maquiagem"]),
+            ("Maquiagem Noiva", "Maquiagem para casamento", 90, 200.00, IMAGENS_SERVICOS["maquiagem"]),
+            ("Curso", "Curso de auto maquiagem", 120, 250.00, IMAGENS_SERVICOS["maquiagem"]),
+        ],
+        "agenda": [(0, "08:00", "18:00"), (1, "08:00", "18:00"), (2, "08:00", "18:00"),
+                   (3, "08:00", "18:00"), (4, "08:00", "18:00"), (5, "08:00", "14:00")]
+    },
 
-    # BARBEARIA
+    # BARBEARIA (4 empresas)
     {
         "nome": "Barbearia do João",
         "email": "contato@barbeariajoao.com",
@@ -95,10 +168,10 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1599351431202-1e0f013789b5?w=800",
         "logo": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=150",
         "servicos": [
-            ("Corte Masculino", "Corte tradicional e moderno", 30, 40.00),
-            ("Barba", "Barba completa com navalha", 30, 30.00),
-            ("Corte + Barba", "Pacote completo", 60, 65.00),
-            ("Pezinho", "Hidratação e corte", 20, 20.00),
+            ("Corte Masculino", "Corte tradicional e moderno", 30, 40.00, IMAGENS_SERVICOS["corte"]),
+            ("Barba", "Barba completa com navalha", 30, 30.00, IMAGENS_SERVICOS["barba"]),
+            ("Corte + Barba", "Pacote completo", 60, 65.00, IMAGENS_SERVICOS["corte"]),
+            ("Pezinho", "Hidratação e corte", 20, 20.00, IMAGENS_SERVICOS["corte"]),
         ],
         "agenda": [(0, "08:00", "20:00"), (1, "08:00", "20:00"), (2, "08:00", "20:00"),
                    (3, "08:00", "20:00"), (4, "08:00", "20:00"), (5, "08:00", "18:00")]
@@ -116,9 +189,9 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800",
         "logo": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=150",
         "servicos": [
-            ("Corte Premium", "Corte com toalha quente", 45, 60.00),
-            ("Barba Premium", "Barba com toalha quente", 45, 50.00),
-            ("Combo Master", "Corte + Barba + Hidratação", 90, 100.00),
+            ("Corte Premium", "Corte com toalha quente", 45, 60.00, IMAGENS_SERVICOS["corte"]),
+            ("Barba Premium", "Barba com toalha quente", 45, 50.00, IMAGENS_SERVICOS["barba"]),
+            ("Combo Master", "Corte + Barba + Hidratação", 90, 100.00, IMAGENS_SERVICOS["corte"]),
         ],
         "agenda": [(0, "09:00", "21:00"), (1, "09:00", "21:00"), (2, "09:00", "21:00"),
                    (3, "09:00", "21:00"), (4, "09:00", "21:00"), (5, "09:00", "17:00")]
@@ -136,15 +209,35 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800",
         "logo": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=150",
         "servicos": [
-            ("Corte Degradê", "Corte com degradê", 30, 45.00),
-            ("Design de Barba", "Desenho e alinhamento", 20, 25.00),
-            ("Combo Moderno", "Corte + Barba + Sobrancelha", 60, 70.00),
+            ("Corte Degradê", "Corte com degradê", 30, 45.00, IMAGENS_SERVICOS["corte"]),
+            ("Design de Barba", "Desenho e alinhamento", 20, 25.00, IMAGENS_SERVICOS["barba"]),
+            ("Combo Moderno", "Corte + Barba + Sobrancelha", 60, 70.00, IMAGENS_SERVICOS["corte"]),
         ],
         "agenda": [(0, "10:00", "22:00"), (1, "10:00", "22:00"), (2, "10:00", "22:00"),
                    (3, "10:00", "22:00"), (4, "10:00", "22:00"), (5, "10:00", "18:00")]
     },
+    {
+        "nome": "Barbearia Imperial",
+        "email": "contato@imperial.com",
+        "telefone": "11933332222",
+        "segmento": "Barbearia",
+        "endereco": "Rua da Consolação, 1000",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "01302-001",
+        "descricao": "Barbearia com ambiente luxuoso e serviços exclusivos.",
+        "foto_capa": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800",
+        "logo": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=150",
+        "servicos": [
+            ("Corte Executivo", "Corte com bebida inclusa", 45, 80.00, IMAGENS_SERVICOS["corte"]),
+            ("Barba Completa", "Barba com massagem", 45, 70.00, IMAGENS_SERVICOS["barba"]),
+            ("Pacote VIP", "Corte + Barba + Hidratação + Bebida", 90, 150.00, IMAGENS_SERVICOS["corte"]),
+        ],
+        "agenda": [(0, "08:00", "22:00"), (1, "08:00", "22:00"), (2, "08:00", "22:00"),
+                   (3, "08:00", "22:00"), (4, "08:00", "22:00"), (5, "09:00", "20:00")]
+    },
 
-    # SAÚDE E ODONTOLOGIA
+    # SAÚDE E ODONTOLOGIA (5 empresas)
     {
         "nome": "Clínica Odonto Sorriso",
         "email": "contato@odontosorriso.com",
@@ -158,10 +251,10 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=800",
         "logo": "https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=150",
         "servicos": [
-            ("Limpeza", "Limpeza e profilaxia", 60, 150.00),
-            ("Restauração", "Tratamento de cáries", 45, 200.00),
-            ("Clareamento", "Clareamento dental", 60, 300.00),
-            ("Canal", "Tratamento de canal", 90, 500.00),
+            ("Limpeza", "Limpeza e profilaxia", 60, 150.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Restauração", "Tratamento de cáries", 45, 200.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Clareamento", "Clareamento dental", 60, 300.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Canal", "Tratamento de canal", 90, 500.00, IMAGENS_SERVICOS["limpeza"]),
         ],
         "agenda": [(0, "08:00", "18:00"), (1, "08:00", "18:00"), (2, "08:00", "18:00"),
                    (3, "08:00", "18:00"), (4, "08:00", "18:00"), (5, "08:00", "12:00")]
@@ -179,10 +272,10 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1519494029142-80d6f4530deb?w=800",
         "logo": "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=150",
         "servicos": [
-            ("Clínico Geral", "Consulta médica", 30, 200.00),
-            ("Cardiologia", "Consulta cardiológica", 45, 300.00),
-            ("Dermatologia", "Consulta dermatológica", 30, 250.00),
-            ("Exames", "Coleta de exames", 20, 100.00),
+            ("Clínico Geral", "Consulta médica", 30, 200.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Cardiologia", "Consulta cardiológica", 45, 300.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Dermatologia", "Consulta dermatológica", 30, 250.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Exames", "Coleta de exames", 20, 100.00, IMAGENS_SERVICOS["limpeza"]),
         ],
         "agenda": [(0, "08:00", "19:00"), (1, "08:00", "19:00"), (2, "08:00", "19:00"),
                    (3, "08:00", "19:00"), (4, "08:00", "19:00"), (5, "08:00", "13:00")]
@@ -200,15 +293,55 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800",
         "logo": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=150",
         "servicos": [
-            ("Fisioterapia", "Sessão de fisioterapia", 60, 120.00),
-            ("Acupuntura", "Sessão de acupuntura", 45, 100.00),
-            ("Massagem Terapêutica", "Massagem relaxante", 60, 90.00),
+            ("Fisioterapia", "Sessão de fisioterapia", 60, 120.00, IMAGENS_SERVICOS["massagem"]),
+            ("Acupuntura", "Sessão de acupuntura", 45, 100.00, IMAGENS_SERVICOS["massagem"]),
+            ("Massagem Terapêutica", "Massagem relaxante", 60, 90.00, IMAGENS_SERVICOS["massagem"]),
         ],
         "agenda": [(0, "08:00", "20:00"), (1, "08:00", "20:00"), (2, "08:00", "20:00"),
                    (3, "08:00", "20:00"), (4, "08:00", "20:00"), (5, "08:00", "14:00")]
     },
+    {
+        "nome": "Centro Médico Paulista",
+        "email": "contato@cmp.com",
+        "telefone": "11922221111",
+        "segmento": "Saúde",
+        "endereco": "Av. Paulista, 2000",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "01310-200",
+        "descricao": "Centro médico com diversas especialidades.",
+        "foto_capa": "https://images.unsplash.com/photo-1519494029142-80d6f4530deb?w=800",
+        "logo": "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=150",
+        "servicos": [
+            ("Pediatria", "Consulta pediátrica", 30, 180.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Ginecologia", "Consulta ginecológica", 30, 200.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Oftalmologia", "Consulta oftalmológica", 30, 150.00, IMAGENS_SERVICOS["limpeza"]),
+        ],
+        "agenda": [(0, "08:00", "18:00"), (1, "08:00", "18:00"), (2, "08:00", "18:00"),
+                   (3, "08:00", "18:00"), (4, "08:00", "18:00"), (5, "08:00", "13:00")]
+    },
+    {
+        "nome": "Psicologia & Bem-estar",
+        "email": "contato@psicologia.com",
+        "telefone": "11911110000",
+        "segmento": "Saúde",
+        "endereco": "Rua Pamplona, 500",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "01405-001",
+        "descricao": "Consultório de psicologia e terapia.",
+        "foto_capa": "https://images.unsplash.com/photo-1573497620053-ea5300f94f21?w=800",
+        "logo": "https://images.unsplash.com/photo-1573497620053-ea5300f94f21?w=150",
+        "servicos": [
+            ("Terapia Individual", "Sessão de terapia", 50, 150.00, IMAGENS_SERVICOS["massagem"]),
+            ("Terapia de Casal", "Sessão para casais", 60, 200.00, IMAGENS_SERVICOS["massagem"]),
+            ("Avaliação", "Avaliação psicológica", 60, 180.00, IMAGENS_SERVICOS["massagem"]),
+        ],
+        "agenda": [(0, "09:00", "20:00"), (1, "09:00", "20:00"), (2, "09:00", "20:00"),
+                   (3, "09:00", "20:00"), (4, "09:00", "20:00"), (5, "09:00", "14:00")]
+    },
 
-    # ESTÉTICA E BEM-ESTAR
+    # ESTÉTICA E BEM-ESTAR (6 empresas)
     {
         "nome": "Studio de Beleza da Ana",
         "email": "contato@studioana.com",
@@ -222,9 +355,9 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=800",
         "logo": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=150",
         "servicos": [
-            ("Design de Sobrancelhas", "Design com henna", 30, 45.00),
-            ("Alongamento de Cílios", "Cílios fio a fio", 90, 120.00),
-            ("Depilação", "Cera quente e fria", 45, 60.00),
+            ("Design de Sobrancelhas", "Design com henna", 30, 45.00, IMAGENS_SERVICOS["maquiagem"]),
+            ("Alongamento de Cílios", "Cílios fio a fio", 90, 120.00, IMAGENS_SERVICOS["maquiagem"]),
+            ("Depilação", "Cera quente e fria", 45, 60.00, IMAGENS_SERVICOS["manicure"]),
         ],
         "agenda": [(0, "09:00", "19:00"), (1, "09:00", "19:00"), (2, "09:00", "19:00"),
                    (3, "09:00", "19:00"), (4, "09:00", "19:00"), (5, "09:00", "15:00")]
@@ -242,10 +375,10 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800",
         "logo": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=150",
         "servicos": [
-            ("Limpeza de Pele", "Limpeza profunda", 60, 120.00),
-            ("Massagem Relaxante", "Massagem terapêutica", 60, 100.00),
-            ("Drenagem Linfática", "Drenagem modeladora", 60, 110.00),
-            ("Tratamento para Acne", "Protocolo completo", 45, 150.00),
+            ("Limpeza de Pele", "Limpeza profunda", 60, 120.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Massagem Relaxante", "Massagem terapêutica", 60, 100.00, IMAGENS_SERVICOS["massagem"]),
+            ("Drenagem Linfática", "Drenagem modeladora", 60, 110.00, IMAGENS_SERVICOS["massagem"]),
+            ("Tratamento para Acne", "Protocolo completo", 45, 150.00, IMAGENS_SERVICOS["limpeza"]),
         ],
         "agenda": [(0, "08:00", "20:00"), (1, "08:00", "20:00"), (2, "08:00", "20:00"),
                    (3, "08:00", "20:00"), (4, "08:00", "20:00"), (5, "08:00", "16:00")]
@@ -263,15 +396,75 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800",
         "logo": "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=150",
         "servicos": [
-            ("Massagem Relaxante", "Massagem com óleos essenciais", 60, 90.00),
-            ("Massagem Tailandesa", "Técnica tailandesa", 90, 130.00),
-            ("Quick Massage", "Massagem rápida de 30min", 30, 50.00),
+            ("Massagem Relaxante", "Massagem com óleos essenciais", 60, 90.00, IMAGENS_SERVICOS["massagem"]),
+            ("Massagem Tailandesa", "Técnica tailandesa", 90, 130.00, IMAGENS_SERVICOS["massagem"]),
+            ("Quick Massage", "Massagem rápida de 30min", 30, 50.00, IMAGENS_SERVICOS["massagem"]),
         ],
         "agenda": [(0, "10:00", "20:00"), (1, "10:00", "20:00"), (2, "10:00", "20:00"),
                    (3, "10:00", "20:00"), (4, "10:00", "20:00"), (5, "10:00", "18:00")]
     },
+    {
+        "nome": "Clínica de Estética Derma",
+        "email": "contato@derma.com",
+        "telefone": "11999998888",
+        "segmento": "Estética",
+        "endereco": "Rua Funchal, 400",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "04551-001",
+        "descricao": "Clínica de estética avançada com equipamentos de última geração.",
+        "foto_capa": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800",
+        "logo": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=150",
+        "servicos": [
+            ("Laser", "Depilação a laser", 60, 150.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Preenchimento", "Preenchimento labial", 45, 350.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Botox", "Toxina botulínica", 45, 400.00, IMAGENS_SERVICOS["limpeza"]),
+        ],
+        "agenda": [(0, "09:00", "19:00"), (1, "09:00", "19:00"), (2, "09:00", "19:00"),
+                   (3, "09:00", "19:00"), (4, "09:00", "19:00"), (5, "09:00", "15:00")]
+    },
+    {
+        "nome": "Estúdio de Tatuagem Ink",
+        "email": "contato@ink.com",
+        "telefone": "11988887777",
+        "segmento": "Estética",
+        "endereco": "Rua Augusta, 2000",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "01405-000",
+        "descricao": "Estúdio de tatuagem e body piercing.",
+        "foto_capa": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800",
+        "logo": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=150",
+        "servicos": [
+            ("Tatuagem Pequena", "Até 10cm", 60, 200.00, IMAGENS_SERVICOS["maquiagem"]),
+            ("Tatuagem Média", "10-20cm", 120, 400.00, IMAGENS_SERVICOS["maquiagem"]),
+            ("Tatuagem Grande", "Acima de 20cm", 180, 600.00, IMAGENS_SERVICOS["maquiagem"]),
+        ],
+        "agenda": [(0, "10:00", "20:00"), (1, "10:00", "20:00"), (2, "10:00", "20:00"),
+                   (3, "10:00", "20:00"), (4, "10:00", "20:00"), (5, "10:00", "18:00")]
+    },
+    {
+        "nome": "Day Spa Serena",
+        "email": "contato@serena.com",
+        "telefone": "11977776666",
+        "segmento": "Bem-estar",
+        "endereco": "Av. Jurubatuba, 1000",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "04960-000",
+        "descricao": "Day spa com pacotes de relaxamento e tratamentos exclusivos.",
+        "foto_capa": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800",
+        "logo": "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=150",
+        "servicos": [
+            ("Dia de Spa", "Pacote completo com massagem e tratamentos", 240, 500.00, IMAGENS_SERVICOS["massagem"]),
+            ("Ofurô", "Banho de ofurô com sais", 60, 150.00, IMAGENS_SERVICOS["massagem"]),
+            ("Massagem com Pedras", "Massagem terapêutica com pedras quentes", 90, 200.00, IMAGENS_SERVICOS["massagem"]),
+        ],
+        "agenda": [(0, "09:00", "19:00"), (1, "09:00", "19:00"), (2, "09:00", "19:00"),
+                   (3, "09:00", "19:00"), (4, "09:00", "19:00"), (5, "09:00", "17:00")]
+    },
 
-    # OUTROS
+    # OUTROS (4 empresas)
     {
         "nome": "Pet Shop Amigo Bicho",
         "email": "contato@amigobicho.com",
@@ -285,9 +478,9 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=800",
         "logo": "https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=150",
         "servicos": [
-            ("Banho e Tosa", "Banho e tosa completa", 90, 80.00),
-            ("Consulta Veterinária", "Consulta com veterinário", 30, 150.00),
-            ("Vacinação", "Vacinas anuais", 20, 100.00),
+            ("Banho e Tosa", "Banho e tosa completa", 90, 80.00, IMAGENS_SERVICOS["corte"]),
+            ("Consulta Veterinária", "Consulta com veterinário", 30, 150.00, IMAGENS_SERVICOS["limpeza"]),
+            ("Vacinação", "Vacinas anuais", 20, 100.00, IMAGENS_SERVICOS["limpeza"]),
         ],
         "agenda": [(0, "09:00", "18:00"), (1, "09:00", "18:00"), (2, "09:00", "18:00"),
                    (3, "09:00", "18:00"), (4, "09:00", "18:00"), (5, "09:00", "14:00")]
@@ -305,9 +498,9 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800",
         "logo": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=150",
         "servicos": [
-            ("Avaliação Física", "Avaliação completa", 60, 100.00),
-            ("Personal Trainer", "Sessão de treino", 60, 80.00),
-            ("Nutrição", "Consulta nutricional", 45, 120.00),
+            ("Avaliação Física", "Avaliação completa", 60, 100.00, IMAGENS_SERVICOS["pilates"]),
+            ("Personal Trainer", "Sessão de treino", 60, 80.00, IMAGENS_SERVICOS["pilates"]),
+            ("Nutrição", "Consulta nutricional", 45, 120.00, IMAGENS_SERVICOS["pilates"]),
         ],
         "agenda": [(0, "06:00", "22:00"), (1, "06:00", "22:00"), (2, "06:00", "22:00"),
                    (3, "06:00", "22:00"), (4, "06:00", "22:00"), (5, "08:00", "18:00")]
@@ -325,12 +518,32 @@ empresas = [
         "foto_capa": "https://images.unsplash.com/photo-1518611012118-696072aa03a1?w=800",
         "logo": "https://images.unsplash.com/photo-1518611012118-696072aa03a1?w=150",
         "servicos": [
-            ("Pilates Solo", "Aula individual", 60, 90.00),
-            ("Pilates Dupla", "Aula para 2 pessoas", 60, 60.00),
-            ("Avaliação Postural", "Análise completa", 45, 80.00),
+            ("Pilates Solo", "Aula individual", 60, 90.00, IMAGENS_SERVICOS["pilates"]),
+            ("Pilates Dupla", "Aula para 2 pessoas", 60, 60.00, IMAGENS_SERVICOS["pilates"]),
+            ("Avaliação Postural", "Análise completa", 45, 80.00, IMAGENS_SERVICOS["pilates"]),
         ],
         "agenda": [(0, "08:00", "20:00"), (1, "08:00", "20:00"), (2, "08:00", "20:00"),
                    (3, "08:00", "20:00"), (4, "08:00", "20:00"), (5, "09:00", "13:00")]
+    },
+    {
+        "nome": "Auto Center Rápido",
+        "email": "contato@autocenter.com",
+        "telefone": "11966665555",
+        "segmento": "Outros",
+        "endereco": "Av. dos Autonomistas, 1000",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "cep": "06020-001",
+        "descricao": "Oficina mecânica com serviços rápidos e garantia.",
+        "foto_capa": "https://images.unsplash.com/photo-1486006920555-cce1f1866ea6?w=800",
+        "logo": "https://images.unsplash.com/photo-1486006920555-cce1f1866ea6?w=150",
+        "servicos": [
+            ("Troca de Óleo", "Troca de óleo e filtros", 30, 80.00, IMAGENS_SERVICOS["corte"]),
+            ("Revisão", "Revisão completa", 120, 300.00, IMAGENS_SERVICOS["corte"]),
+            ("Alinhamento", "Alinhamento e balanceamento", 45, 100.00, IMAGENS_SERVICOS["corte"]),
+        ],
+        "agenda": [(0, "08:00", "18:00"), (1, "08:00", "18:00"), (2, "08:00", "18:00"),
+                   (3, "08:00", "18:00"), (4, "08:00", "18:00"), (5, "08:00", "13:00")]
     }
 ]
 
@@ -368,14 +581,14 @@ try:
         empresa_id = cursor.fetchone()[0]
         print(f"   ✅ Empresa ID: {empresa_id}")
         
-        # Inserir serviços
-        for nome, desc, duracao, preco in empresa['servicos']:
+        # Inserir serviços (com imagem)
+        for nome, desc, duracao, preco, imagem in empresa['servicos']:
             cursor.execute("""
-                INSERT INTO servicos (empresa_id, nome, descricao, duracao_minutos, preco)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (empresa_id, nome, desc, duracao, preco))
+                INSERT INTO servicos (empresa_id, nome, descricao, duracao_minutos, preco, imagem, ativo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (empresa_id, nome, desc, duracao, preco, imagem, True))
         
-        print(f"   ✅ {len(empresa['servicos'])} serviços")
+        print(f"   ✅ {len(empresa['servicos'])} serviços com imagens")
         
         # Inserir agenda
         for dia, inicio, fim in empresa['agenda']:
@@ -411,13 +624,14 @@ try:
     print("\n" + "=" * 60)
     print("🎯 LINKS PARA TESTAR:")
     print("=" * 60)
-    for emp in empresas_db[:10]:  # Mostra apenas os 10 primeiros
+    for emp in empresas_db[:15]:  # Mostra os 15 primeiros
         print(f"   http://localhost:3000/empresa/{emp[0]}")
     
-    if len(empresas_db) > 10:
-        print(f"   ... e mais {len(empresas_db) - 10} empresas")
+    if len(empresas_db) > 15:
+        print(f"   ... e mais {len(empresas_db) - 15} empresas")
     
-    print("\n✨ Total de empresas inseridas:", len(empresas_db))
+    print(f"\n✨ Total de empresas inseridas: {len(empresas_db)}")
+    print(f"📸 Cada serviço agora tem imagem personalizada!")
     
 except Exception as e:
     print(f"❌ Erro: {e}")

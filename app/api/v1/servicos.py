@@ -5,7 +5,16 @@ from app.services.servico_service import ServicoService
 from app.schemas.servico import ServicoCreate, ServicoResponse
 from app.api.deps import get_current_empresa
 from app.models.empresa import Empresa
+from app.models.servico import Servico
 from typing import List
+from fastapi import UploadFile, File
+import shutil
+import uuid
+import os
+from fastapi import UploadFile, File
+import shutil
+import uuid
+import os
 
 router = APIRouter()
 
@@ -82,9 +91,24 @@ def delete_servico(
     db: Session = Depends(get_db)
 ):
     """
-    Remove um serviço
+    Remove um serviço permanentemente (apenas se não tiver agendamentos)
     """
     servico_service = ServicoService(db)
+    
+    # Verificar se existem agendamentos para este serviço
+    from app.models.agendamento import Agendamento
+    agendamentos_count = db.query(Agendamento).filter(
+        Agendamento.servico_id == servico_id,
+        Agendamento.empresa_id == current_empresa.id,
+        Agendamento.status.in_(['pendente', 'aceito'])
+    ).count()
+    
+    if agendamentos_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Não é possível excluir este serviço. Existem {agendamentos_count} agendamentos pendentes ou confirmados. Desative o serviço ao invés de excluir."
+        )
+    
     deleted = servico_service.delete_servico(servico_id, current_empresa.id)
     
     if not deleted:
@@ -94,3 +118,124 @@ def delete_servico(
         )
     
     return None
+
+@router.patch("/{servico_id}/desativar")
+def desativar_servico(
+    servico_id: int,
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """
+    Desativa um serviço (não aparece mais para clientes, mas mantém histórico)
+    """
+    servico = db.query(Servico).filter(
+        Servico.id == servico_id,
+        Servico.empresa_id == current_empresa.id
+    ).first()
+    
+    if not servico:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Serviço não encontrado"
+        )
+    
+    servico.ativo = False
+    db.commit()
+    
+    return {"message": "Serviço desativado com sucesso", "servico_id": servico_id}
+
+@router.patch("/{servico_id}/reativar")
+def reativar_servico(
+    servico_id: int,
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """
+    Reativa um serviço desativado
+    """
+    servico = db.query(Servico).filter(
+        Servico.id == servico_id,
+        Servico.empresa_id == current_empresa.id
+    ).first()
+    
+    if not servico:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Serviço não encontrado"
+        )
+    
+    servico.ativo = True
+    db.commit()
+    
+    return {"message": "Serviço reativado com sucesso", "servico_id": servico_id}
+
+# Criar pasta se não existir
+os.makedirs("uploads/servicos", exist_ok=True)
+
+@router.post("/{servico_id}/upload-imagem")
+async def upload_imagem_servico(
+    servico_id: int,
+    file: UploadFile = File(...),
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """Faz upload da imagem principal do serviço"""
+    
+    # Verificar se serviço existe
+    servico = db.query(Servico).filter(
+        Servico.id == servico_id,
+        Servico.empresa_id == current_empresa.id
+    ).first()
+    
+    if not servico:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+    
+    # Validar tipo
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
+    
+    # Gerar nome único
+    extensao = file.filename.split('.')[-1]
+    nome_arquivo = f"servico_{servico_id}_{uuid.uuid4()}.{extensao}"
+    caminho_arquivo = f"uploads/servicos/{nome_arquivo}"
+    
+    # Salvar arquivo
+    with open(caminho_arquivo, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # URL pública
+    url_imagem = f"/uploads/servicos/{nome_arquivo}"
+    
+    # Salvar no banco
+    servico.imagem = url_imagem
+    db.commit()
+    
+    return {"url": url_imagem, "message": "Imagem enviada com sucesso"}
+
+@router.delete("/{servico_id}/remover-imagem")
+def remover_imagem_servico(
+    servico_id: int,
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """Remove a imagem do serviço"""
+    
+    servico = db.query(Servico).filter(
+        Servico.id == servico_id,
+        Servico.empresa_id == current_empresa.id
+    ).first()
+    
+    if not servico:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+    
+    # Remover arquivo do disco
+    if servico.imagem and servico.imagem.startswith('/uploads/'):
+        caminho_arquivo = servico.imagem[1:]
+        if os.path.exists(caminho_arquivo):
+            os.remove(caminho_arquivo)
+    
+    servico.imagem = None
+    db.commit()
+    
+    return {"message": "Imagem removida com sucesso"}
+

@@ -1,220 +1,238 @@
-from app.core.config import settings
-import httpx
+# app/services/whatsapp_service.py
 from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
-import logging
-from typing import Optional
-
-logger = logging.getLogger(__name__)
+from typing import Tuple, Optional
 
 class WhatsAppService:
-    def __init__(self):
-        self.use_twilio = settings.TWILIO_ACCOUNT_SID is not None
-        self.use_cloud_api = settings.WHATSAPP_ACCESS_TOKEN is not None
-        
-        if self.use_twilio:
-            try:
-                self.twilio_client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-                logger.info("WhatsApp service initialized with Twilio")
-            except Exception as e:
-                logger.error(f"Failed to initialize Twilio client: {e}")
-                self.use_twilio = False
-        elif self.use_cloud_api:
-            self.cloud_api_url = f"https://graph.facebook.com/v17.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
-            logger.info("WhatsApp service initialized with WhatsApp Cloud API")
-        else:
-            logger.warning("No WhatsApp service configured. Messages will be logged only.")
+    """Serviço para envio de mensagens WhatsApp via Twilio"""
     
-    def send_message(self, to: str, message: str, empresa_telefone: Optional[str] = None) -> bool:
+    @staticmethod
+    def send_message(
+        account_sid: str, 
+        auth_token: str, 
+        from_number: str, 
+        to_number: str, 
+        message: str
+    ) -> Tuple[bool, str]:
         """
-        Envia mensagem via WhatsApp
-        Args:
-            to: Número do destinatário (formato: +5511999999999)
-            message: Conteúdo da mensagem
-            empresa_telefone: Telefone da empresa (usado para Twilio)
-        Returns:
-            bool: True se enviado com sucesso, False caso contrário
+        Envia uma mensagem WhatsApp usando as credenciais da empresa
         """
-        # Formatar número
-        to = self._format_phone_number(to)
-        
-        if self.use_twilio:
-            return self._send_twilio(to, message, empresa_telefone)
-        elif self.use_cloud_api:
-            return self._send_cloud_api(to, message)
-        else:
-            # Modo desenvolvimento: apenas log
-            logger.info(f"[WHATSAPP MOCK] Para: {to} | Mensagem: {message}")
-            return True
-    
-    def _format_phone_number(self, phone: str) -> str:
-        """Formata número de telefone para o padrão internacional"""
-        # Remove espaços e caracteres especiais
-        phone = ''.join(filter(str.isdigit, phone))
-        
-        # Se não começar com código do país, assume Brasil (+55)
-        if len(phone) == 11 and phone.startswith('9'):  # 9xxxxxxxxx
-            phone = '55' + phone
-        elif len(phone) == 10:  # 8 dígitos + DDD
-            phone = '55' + phone
-        
-        return f"+{phone}"
-    
-    def _send_twilio(self, to: str, message: str, from_number: Optional[str] = None) -> bool:
-        """Envia mensagem usando Twilio"""
         try:
-            # Usar número da empresa se fornecido, senão usar número padrão
-            from_whatsapp = from_number or settings.TWILIO_WHATSAPP_NUMBER
+            # --- Formatação do FROM_NUMBER (Remetente - Sandbox) ---
+            # IMPORTANTE: O número do Sandbox deve ser usado EXATAMENTE como está no banco.
+            # Não adicione ou remova códigos de país.
+            from_number_full = from_number
+            if not from_number_full.startswith('whatsapp:'):
+                from_number_full = f'whatsapp:{from_number_full}'
+
+            # --- Formatação do TO_NUMBER (Destinatário - Cliente) ---
+            # 1. Remove tudo que não é dígito
+            to_number_clean = ''.join(filter(str.isdigit, to_number))
             
-            if not from_whatsapp:
-                logger.error("No WhatsApp number configured for Twilio")
-                return False
+            # 2. Garante o código do país 55 para o Brasil
+            if not to_number_clean.startswith('55'):
+                to_number_clean = '55' + to_number_clean
+                
+            # 3. Formata para o Twilio
+            to_number_full = f'whatsapp:+{to_number_clean}'
             
-            # Garantir que o número tem o formato correto
-            if not from_whatsapp.startswith('whatsapp:'):
-                from_whatsapp = f"whatsapp:{from_whatsapp}"
+            print(f"📱 Enviando mensagem...")
+            print(f"   From: {from_number_full}") # Deve imprimir "whatsapp:+14155238886"
+            print(f"   To: {to_number_full}")
             
-            if not to.startswith('whatsapp:'):
-                to = f"whatsapp:{to}"
+            # Inicializa cliente Twilio
+            client = Client(account_sid, auth_token)
             
-            # Enviar mensagem
-            twilio_message = self.twilio_client.messages.create(
+            # Envia mensagem
+            msg = client.messages.create(
                 body=message,
-                from_=from_whatsapp,
-                to=to
+                from_=from_number_full,
+                to=to_number_full
             )
             
-            logger.info(f"Message sent via Twilio: SID={twilio_message.sid}")
-            return True
+            print(f"✅ Mensagem enviada! SID: {msg.sid}")
+            return True, msg.sid
             
-        except TwilioRestException as e:
-            logger.error(f"Twilio error: {e}")
-            return False
         except Exception as e:
-            logger.error(f"Unexpected error sending WhatsApp via Twilio: {e}")
-            return False
+            print(f"❌ Erro: {e}")
+            return False, str(e)
     
-    def _send_cloud_api(self, to: str, message: str) -> bool:
-        """Envia mensagem usando WhatsApp Cloud API"""
-        try:
-            headers = {
-                "Authorization": f"Bearer {settings.WHATSAPP_ACCESS_TOKEN}",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": to,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": message
-                }
-            }
-            
-            with httpx.Client() as client:
-                response = client.post(
-                    self.cloud_api_url,
-                    json=payload,
-                    headers=headers,
-                    timeout=10.0
-                )
-                
-                if response.status_code == 200:
-                    logger.info(f"Message sent via WhatsApp Cloud API: {response.json()}")
-                    return True
-                else:
-                    logger.error(f"WhatsApp Cloud API error: {response.status_code} - {response.text}")
-                    return False
-                    
-        except httpx.TimeoutException:
-            logger.error("Timeout sending WhatsApp message")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error sending WhatsApp via Cloud API: {e}")
-            return False
-    
-    def send_template_message(self, to: str, template_name: str, components: list, empresa_telefone: Optional[str] = None) -> bool:
+    @staticmethod
+    def send_confirmation(
+        empresa,
+        cliente_nome: str,
+        servico_nome: str,
+        data: str,
+        horario: str,
+        telefone_cliente: str
+    ) -> Tuple[bool, str]:
         """
-        Envia mensagem usando template (apenas para Twilio ou Cloud API)
+        Envia mensagem de confirmação de agendamento usando as configurações da empresa
+        
+        Args:
+            empresa: Objeto Empresa (com as credenciais e mensagens)
+            cliente_nome: Nome do cliente
+            servico_nome: Nome do serviço
+            data: Data do agendamento (DD/MM/YYYY)
+            horario: Horário do agendamento (HH:MM)
+            telefone_cliente: Telefone do cliente
+        
+        Returns:
+            Tuple[bool, str]: (sucesso, mensagem_ou_erro)
         """
-        if self.use_twilio:
-            return self._send_twilio_template(to, template_name, components, empresa_telefone)
-        elif self.use_cloud_api:
-            return self._send_cloud_template(to, template_name, components)
+        # Verifica se empresa tem WhatsApp configurado
+        if not empresa.twilio_account_sid or not empresa.twilio_auth_token:
+            return False, "WhatsApp não configurado na empresa"
+        
+        # Usa mensagem personalizada ou padrão
+        if empresa.whatsapp_confirmation_message:
+            mensagem = empresa.whatsapp_confirmation_message
+            mensagem = mensagem.replace('{cliente_nome}', cliente_nome)
+            mensagem = mensagem.replace('{servico_nome}', servico_nome)
+            mensagem = mensagem.replace('{data}', data)
+            mensagem = mensagem.replace('{horario}', horario)
+            mensagem = mensagem.replace('{empresa_nome}', empresa.nome)
         else:
-            logger.info(f"[WHATSAPP TEMPLATE MOCK] Para: {to} | Template: {template_name}")
-            return True
+            mensagem = f"""✅ Agendamento confirmado!
+
+📋 Serviço: {servico_nome}
+📅 Data: {data}
+⏰ Horário: {horario}
+🏢 Empresa: {empresa.nome}
+
+Qualquer dúvida, entre em contato conosco."""
+        
+        # Envia a mensagem
+        return WhatsAppService.send_message(
+            account_sid=empresa.twilio_account_sid,
+            auth_token=empresa.twilio_auth_token,
+            from_number=empresa.twilio_whatsapp_number,
+            to_number=telefone_cliente,
+            message=mensagem
+        )
     
-    def _send_twilio_template(self, to: str, template_name: str, components: list, from_number: Optional[str] = None) -> bool:
-        """Envia template via Twilio"""
-        try:
-            from_whatsapp = from_number or settings.TWILIO_WHATSAPP_NUMBER
-            
-            if not from_whatsapp:
-                logger.error("No WhatsApp number configured for Twilio")
-                return False
-            
-            if not from_whatsapp.startswith('whatsapp:'):
-                from_whatsapp = f"whatsapp:{from_whatsapp}"
-            
-            if not to.startswith('whatsapp:'):
-                to = f"whatsapp:{to}"
-            
-            # Twilio requer configuração específica para templates
-            # Este é um exemplo básico - ajuste conforme necessidade
-            message = self.twilio_client.messages.create(
-                content_sid=template_name,
-                from_=from_whatsapp,
-                to=to,
-                content_variables=components
-            )
-            
-            logger.info(f"Template message sent via Twilio: SID={message.sid}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error sending template via Twilio: {e}")
-            return False
+    @staticmethod
+    def send_welcome(
+        empresa,
+        cliente_nome: str,
+        telefone_cliente: str
+    ) -> Tuple[bool, str]:
+        """
+        Envia mensagem de boas-vindas para novo cliente
+        """
+        if not empresa.twilio_account_sid or not empresa.twilio_auth_token:
+            return False, "WhatsApp não configurado na empresa"
+        
+        if empresa.whatsapp_welcome_message:
+            mensagem = empresa.whatsapp_welcome_message
+            mensagem = mensagem.replace('{cliente_nome}', cliente_nome)
+            mensagem = mensagem.replace('{empresa_nome}', empresa.nome)
+        else:
+            mensagem = f"""👋 Olá {cliente_nome}!
+
+Bem-vindo(a) à {empresa.nome}! 
+
+Você receberá notificações de agendamento por aqui.
+Qualquer dúvida, estamos à disposição."""
+        
+        return WhatsAppService.send_message(
+            account_sid=empresa.twilio_account_sid,
+            auth_token=empresa.twilio_auth_token,
+            from_number=empresa.twilio_whatsapp_number,
+            to_number=telefone_cliente,
+            message=mensagem
+        )
     
-    def _send_cloud_template(self, to: str, template_name: str, components: list) -> bool:
-        """Envia template via WhatsApp Cloud API"""
+    @staticmethod
+    def send_reminder(
+        empresa,
+        cliente_nome: str,
+        servico_nome: str,
+        data: str,
+        horario: str,
+        telefone_cliente: str
+    ) -> Tuple[bool, str]:
+        """
+        Envia mensagem de lembrete antes do agendamento
+        """
+        if not empresa.twilio_account_sid or not empresa.twilio_auth_token:
+            return False, "WhatsApp não configurado na empresa"
+        
+        if empresa.whatsapp_reminder_message:
+            mensagem = empresa.whatsapp_reminder_message
+            mensagem = mensagem.replace('{cliente_nome}', cliente_nome)
+            mensagem = mensagem.replace('{servico_nome}', servico_nome)
+            mensagem = mensagem.replace('{data}', data)
+            mensagem = mensagem.replace('{horario}', horario)
+            mensagem = mensagem.replace('{empresa_nome}', empresa.nome)
+        else:
+            mensagem = f"""🔔 Lembrete!
+
+Seu agendamento está chegando:
+
+📋 Serviço: {servico_nome}
+📅 Data: {data}
+⏰ Horário: {horario}
+🏢 Empresa: {empresa.nome}
+
+Confirme sua presença ou remaneje se necessário."""
+        
+        return WhatsAppService.send_message(
+            account_sid=empresa.twilio_account_sid,
+            auth_token=empresa.twilio_auth_token,
+            from_number=empresa.twilio_whatsapp_number,
+            to_number=telefone_cliente,
+            message=mensagem
+        )
+    
+    @staticmethod
+    def send_cancel(
+        empresa,
+        cliente_nome: str,
+        servico_nome: str,
+        data: str,
+        horario: str,
+        telefone_cliente: str
+    ) -> Tuple[bool, str]:
+        """
+        Envia mensagem de cancelamento do agendamento
+        """
+        if not empresa.twilio_account_sid or not empresa.twilio_auth_token:
+            return False, "WhatsApp não configurado na empresa"
+        
+        if empresa.whatsapp_cancel_message:
+            mensagem = empresa.whatsapp_cancel_message
+            mensagem = mensagem.replace('{cliente_nome}', cliente_nome)
+            mensagem = mensagem.replace('{servico_nome}', servico_nome)
+            mensagem = mensagem.replace('{data}', data)
+            mensagem = mensagem.replace('{horario}', horario)
+            mensagem = mensagem.replace('{empresa_nome}', empresa.nome)
+        else:
+            mensagem = f"""❌ Agendamento cancelado!
+
+📋 Serviço: {servico_nome}
+📅 Data: {data}
+⏰ Horário: {horario}
+🏢 Empresa: {empresa.nome}
+
+Para reagendar, entre em contato conosco."""
+        
+        return WhatsAppService.send_message(
+            account_sid=empresa.twilio_account_sid,
+            auth_token=empresa.twilio_auth_token,
+            from_number=empresa.twilio_whatsapp_number,
+            to_number=telefone_cliente,
+            message=mensagem
+        )
+    
+    @staticmethod
+    def test_connection(account_sid: str, auth_token: str) -> Tuple[bool, str]:
+        """
+        Testa se as credenciais da Twilio são válidas
+        """
         try:
-            headers = {
-                "Authorization": f"Bearer {settings.WHATSAPP_ACCESS_TOKEN}",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": to,
-                "type": "template",
-                "template": {
-                    "name": template_name,
-                    "language": {
-                        "code": "pt_BR"
-                    },
-                    "components": components
-                }
-            }
-            
-            with httpx.Client() as client:
-                response = client.post(
-                    self.cloud_api_url,
-                    json=payload,
-                    headers=headers,
-                    timeout=10.0
-                )
-                
-                if response.status_code == 200:
-                    logger.info(f"Template sent via WhatsApp Cloud API")
-                    return True
-                else:
-                    logger.error(f"WhatsApp Cloud API template error: {response.text}")
-                    return False
-                    
+            client = Client(account_sid, auth_token)
+            # Tenta buscar informações da conta para validar
+            client.api.accounts(account_sid).fetch()
+            return True, "Conexão OK"
         except Exception as e:
-            logger.error(f"Error sending template via Cloud API: {e}")
-            return False
+            return False, str(e)

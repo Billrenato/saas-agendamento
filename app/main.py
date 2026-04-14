@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles  # ← ADICIONE ESTA
 from app.core.config import settings
 from app.api.v1 import auth, empresas, servicos, agenda, agendamentos
 from app.api.v1.agendamentos import public_router
+import os  # ← ADICIONE ESTA
 
 app = FastAPI(
     title="SaaS Agendamento API",
@@ -11,6 +13,14 @@ app = FastAPI(
     docs_url="/api/docs" if settings.ENVIRONMENT == "development" else None,
     redoc_url="/api/redoc" if settings.ENVIRONMENT == "development" else None,
 )
+
+# Criar pasta de uploads se não existir
+os.makedirs("uploads", exist_ok=True)
+os.makedirs("uploads/servicos", exist_ok=True)
+os.makedirs("uploads/empresas", exist_ok=True)
+
+# Servir arquivos estáticos (IMPORTANTE)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # CORS
 app.add_middleware(
