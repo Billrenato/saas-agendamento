@@ -7,7 +7,7 @@ DB_CONFIG = {
     "port": 5432,
     "database": "saas_agendamento",
     "user": "postgres",
-    "password": "010203"  # ← Coloque sua senha do PostgreSQL
+    "password": "@nota1000"  # ← Coloque sua senha do PostgreSQL
 }
 
 def criar_tabelas():

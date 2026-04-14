@@ -1,15 +1,20 @@
 from typing import List, Optional
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.empresa_service import EmpresaService
-from app.schemas.empresa import EmpresaResponse
+from app.schemas.empresa import EmpresaResponse, EmpresaCreate
 from app.api.deps import get_current_empresa
 from app.models.empresa import Empresa
-
+from app.repositories.empresa_repository import EmpresaRepository
+import os
+import uuid
+import shutil
 
 router = APIRouter()
+
+# Criar pastas de upload
+os.makedirs("uploads/empresas", exist_ok=True)
 
 @router.get("/{empresa_id}", response_model=EmpresaResponse)
 def get_empresa(empresa_id: int, db: Session = Depends(get_db)):
@@ -56,8 +61,6 @@ def get_horarios_disponiveis(
     
     return {"horarios": horarios}
 
-
-
 @router.get("/", response_model=List[EmpresaResponse])
 def listar_empresas(
     skip: int = 0,
@@ -86,100 +89,167 @@ def listar_segmentos(
     segmentos = db.query(Empresa.segmento).filter(Empresa.segmento.isnot(None)).distinct().all()
     return [s[0] for s in segmentos if s[0]]
 
-
+from app.schemas.empresa import EmpresaResponse, EmpresaCreate, EmpresaUpdate
 
 @router.put("/me", response_model=EmpresaResponse)
 def atualizar_empresa(
-    empresa_data: EmpresaCreate,
+    empresa_data: EmpresaUpdate,  # ← MUDE PARA EmpresaUpdate
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
     """
     Atualiza os dados da empresa autenticada
     """
-    empresa_repo = EmpresaRepository(db)
+    try:
+        # Limpa o telefone se veio
+        if empresa_data.telefone:
+            telefone_limpo = ''.join(filter(str.isdigit, empresa_data.telefone))
+            current_empresa.telefone = telefone_limpo
+        
+        # Limpa o CEP se veio
+        if empresa_data.cep:
+            cep_limpo = ''.join(filter(str.isdigit, empresa_data.cep))
+            current_empresa.cep = cep_limpo
+        
+        # Verificar se email já existe (se estiver mudando)
+        if empresa_data.email and empresa_data.email != current_empresa.email:
+            existing = db.query(Empresa).filter(Empresa.email == empresa_data.email).first()
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email já cadastrado"
+                )
+        
+        # Atualizar apenas os campos que vieram
+        for key, value in empresa_data.dict(exclude_unset=True).items():
+            if hasattr(current_empresa, key):
+                setattr(current_empresa, key, value)
+        
+        db.commit()
+        db.refresh(current_empresa)
+        
+        return current_empresa
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
     
-    # Verificar se email já existe (se estiver mudando)
-    if empresa_data.email != current_empresa.email:
-        existing = empresa_repo.get_by_email(empresa_data.email)
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email já cadastrado"
-            )
-    
-    # Atualizar campos
-    for key, value in empresa_data.dict(exclude_unset=True).items():
-        if key != 'senha':
-            setattr(current_empresa, key, value)
-    
-    db.commit()
-    db.refresh(current_empresa)
-    
-    return current_empresa
 
-@router.patch("/me/logo")
-def upload_logo(
-    logo_url: str,
+    
+
+@router.post("/me/upload-logo")
+async def upload_logo(
+    file: UploadFile = File(...),
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
-    """
-    Atualiza a logo da empresa
-    """
-    current_empresa.logo = logo_url
+    """Upload da logo da empresa"""
+    
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
+    
+    extensao = file.filename.split('.')[-1]
+    nome_arquivo = f"logo_{current_empresa.id}_{uuid.uuid4()}.{extensao}"
+    caminho_arquivo = f"uploads/empresas/{nome_arquivo}"
+    
+    with open(caminho_arquivo, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    url_imagem = f"/uploads/empresas/{nome_arquivo}"
+    current_empresa.logo = url_imagem
     db.commit()
-    return {"logo": logo_url}
+    
+    return {"url": url_imagem, "message": "Logo atualizada"}
 
-@router.patch("/me/capa")
-def upload_capa(
-    capa_url: str,
+@router.delete("/me/logo")
+def remover_logo(
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
-    """
-    Atualiza a foto de capa da empresa
-    """
-    current_empresa.foto_capa = capa_url
+    """Remove a logo da empresa"""
+    
+    if current_empresa.logo and current_empresa.logo.startswith('/uploads/'):
+        caminho_arquivo = current_empresa.logo[1:]
+        if os.path.exists(caminho_arquivo):
+            os.remove(caminho_arquivo)
+    
+    current_empresa.logo = None
     db.commit()
-    return {"foto_capa": capa_url}
+    
+    return {"message": "Logo removida"}
 
-# app/api/v1/empresas.py
+@router.post("/me/upload-capa")
+async def upload_capa(
+    file: UploadFile = File(...),
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """Upload da foto de capa da empresa"""
+    
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
+    
+    extensao = file.filename.split('.')[-1]
+    nome_arquivo = f"capa_{current_empresa.id}_{uuid.uuid4()}.{extensao}"
+    caminho_arquivo = f"uploads/empresas/{nome_arquivo}"
+    
+    with open(caminho_arquivo, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    url_imagem = f"/uploads/empresas/{nome_arquivo}"
+    current_empresa.foto_capa = url_imagem
+    db.commit()
+    
+    return {"url": url_imagem, "message": "Capa atualizada"}
 
-# 1. Salvar credenciais (você já tem)
+@router.delete("/me/capa")
+def remover_capa(
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """Remove a foto de capa da empresa"""
+    
+    if current_empresa.foto_capa and current_empresa.foto_capa.startswith('/uploads/'):
+        caminho_arquivo = current_empresa.foto_capa[1:]
+        if os.path.exists(caminho_arquivo):
+            os.remove(caminho_arquivo)
+    
+    current_empresa.foto_capa = None
+    db.commit()
+    
+    return {"message": "Capa removida"}
+
 @router.put("/me/whatsapp")
 def update_whatsapp(
     data: dict,
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
+    """Salva as credenciais do WhatsApp"""
     current_empresa.twilio_account_sid = data.get('twilio_account_sid')
     current_empresa.twilio_auth_token = data.get('twilio_auth_token')
     current_empresa.twilio_whatsapp_number = data.get('twilio_whatsapp_number')
     db.commit()
     return {"message": "WhatsApp configurado"}
 
-# 2. Buscar credenciais (para mostrar no frontend)
 @router.get("/me/whatsapp")
 def get_whatsapp(
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
-    """
-    Retorna as configurações de WhatsApp da empresa
-    """
+    """Retorna as configurações de WhatsApp da empresa"""
     return {
         "twilio_account_sid": current_empresa.twilio_account_sid,
         "twilio_auth_token": current_empresa.twilio_auth_token,
         "twilio_whatsapp_number": current_empresa.twilio_whatsapp_number
     }
 
-# 3. Testar conexão (você já deve ter)
 @router.post("/me/whatsapp/test")
 def test_whatsapp(
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
+    """Testa a conexão com Twilio"""
     from app.services.whatsapp_service import WhatsAppService
     
     if not current_empresa.twilio_account_sid:
@@ -195,16 +265,14 @@ def test_whatsapp(
     
     return {"success": True, "message": "Conexão bem sucedida!"}
 
-
 @router.put("/me/whatsapp-messages")
 def update_whatsapp_messages(
     data: dict,
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
-    current_empresa.send_reminder_hours = data.get('send_reminder_hours', 24)
+    """Atualiza as mensagens personalizadas"""
     current_empresa.whatsapp_confirmation_message = data.get('whatsapp_confirmation_message')
-    current_empresa.whatsapp_reminder_message = data.get('whatsapp_reminder_message')
     current_empresa.whatsapp_welcome_message = data.get('whatsapp_welcome_message')
     current_empresa.whatsapp_cancel_message = data.get('whatsapp_cancel_message')
     db.commit()

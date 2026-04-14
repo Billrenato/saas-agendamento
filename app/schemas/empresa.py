@@ -1,11 +1,11 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
 
 class EmpresaBase(BaseModel):
     nome: str
     email: EmailStr
-    telefone: str
+    telefone: str = Field(..., min_length=10, max_length=11)
     segmento: Optional[str] = None
     endereco: Optional[str] = None
     cidade: Optional[str] = None
@@ -15,6 +15,23 @@ class EmpresaBase(BaseModel):
     logo: Optional[str] = None
     descricao: Optional[str] = None
     horario_funcionamento: Optional[str] = None
+
+
+
+class EmpresaUpdate(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[EmailStr] = None
+    telefone: Optional[str] = None
+    segmento: Optional[str] = None
+    endereco: Optional[str] = None
+    cidade: Optional[str] = None
+    estado: Optional[str] = None
+    cep: Optional[str] = None
+    descricao: Optional[str] = None
+    foto_capa: Optional[str] = None
+    logo: Optional[str] = None
+    horario_funcionamento: Optional[str] = None
+        
 
 class EmpresaCreate(EmpresaBase):
     senha: str
@@ -33,3 +50,6 @@ class EmpresaResponse(EmpresaBase):
     
     class Config:
         from_attributes = True
+
+
+

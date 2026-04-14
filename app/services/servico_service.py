@@ -46,3 +46,6 @@ class ServicoService:
             return False
         
         return self.servico_repo.delete(servico_id)
+    
+    def get_servicos_by_empresa(self, empresa_id: int, apenas_ativos: bool = False) -> List[Servico]:
+        return self.servico_repo.get_by_empresa(empresa_id, apenas_ativos)

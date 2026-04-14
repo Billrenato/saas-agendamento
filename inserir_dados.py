@@ -8,7 +8,7 @@ DB_CONFIG = {
     "port": 5432,
     "database": "saas_agendamento",
     "user": "postgres",
-    "password": "010203"
+    "password": "@nota1000"  # ← Coloque sua senha do PostgreSQL
 }
 
 # Senha padrão para todas as empresas

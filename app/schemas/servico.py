@@ -8,7 +8,7 @@ class ServicoBase(BaseModel):
     duracao_minutos: int
     preco: Optional[float] = None
     ativo: Optional[bool] = True
-    imagem: Optional[str] = None
+    imagem: Optional[str] = None  # ← SÓ AQUI JÁ BASTA
 
 class ServicoCreate(ServicoBase):
     pass

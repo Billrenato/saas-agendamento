@@ -16,6 +16,7 @@ class Servico(Base):
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
     atualizado_em = Column(DateTime(timezone=True), onupdate=func.now())
     imagem = Column(String, nullable=True)
+
     
     # Relacionamentos
     empresa = relationship("Empresa", back_populates="servicos")

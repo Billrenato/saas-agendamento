@@ -15,6 +15,7 @@ from fastapi import UploadFile, File
 import shutil
 import uuid
 import os
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -179,8 +180,6 @@ async def upload_imagem_servico(
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
-    """Faz upload da imagem principal do serviço"""
-    
     # Verificar se serviço existe
     servico = db.query(Servico).filter(
         Servico.id == servico_id,
@@ -194,6 +193,9 @@ async def upload_imagem_servico(
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
     
+    # Criar pasta
+    os.makedirs("uploads/servicos", exist_ok=True)
+    
     # Gerar nome único
     extensao = file.filename.split('.')[-1]
     nome_arquivo = f"servico_{servico_id}_{uuid.uuid4()}.{extensao}"
@@ -203,12 +205,16 @@ async def upload_imagem_servico(
     with open(caminho_arquivo, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # URL pública
-    url_imagem = f"/uploads/servicos/{nome_arquivo}"
+    url_imagem = f"http://localhost:8000/uploads/servicos/{nome_arquivo}"
     
-    # Salvar no banco
+    # SALVAR NO BANCO
     servico.imagem = url_imagem
     db.commit()
+    db.refresh(servico)  # ← ADICIONE ESTA LINHA
+    
+    print(f"DEBUG: Serviço ID: {servico_id}")
+    print(f"DEBUG: URL salva: {url_imagem}")
+    print(f"DEBUG: Serviço após commit: {servico.imagem}")
     
     return {"url": url_imagem, "message": "Imagem enviada com sucesso"}
 

@@ -4,6 +4,13 @@ from app.models.servico import Servico
 from app.repositories.base import BaseRepository
 from typing import List, Optional
 
+    
+
+from sqlalchemy.orm import Session
+from app.models.servico import Servico
+from app.repositories.base import BaseRepository
+from typing import List, Optional
+
 class ServicoRepository(BaseRepository[Servico]):
     def __init__(self, db: Session):
         super().__init__(db, Servico)
@@ -13,3 +20,6 @@ class ServicoRepository(BaseRepository[Servico]):
         if apenas_ativos:
             query = query.filter(Servico.ativo == True)
         return query.all()
+    
+    def get(self, id: int) -> Optional[Servico]:
+        return self.db.query(Servico).filter(Servico.id == id).first()
