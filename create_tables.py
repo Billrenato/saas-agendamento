@@ -7,7 +7,7 @@ DB_CONFIG = {
     "port": 5432,
     "database": "saas_agendamento",
     "user": "postgres",
-    "password": "@nota1000"  # ← Coloque sua senha do PostgreSQL
+    "password": "010203"  # ← Coloque sua senha do PostgreSQL
 }
 
 def criar_tabelas():
@@ -46,6 +46,8 @@ def criar_tabelas():
                 logo TEXT,
                 descricao TEXT,
                 horario_funcionamento TEXT,
+                site VARCHAR(255),
+                whatsapp_adicional VARCHAR(20),
                 ativo BOOLEAN DEFAULT TRUE,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -89,19 +91,25 @@ def criar_tabelas():
         """)
         print("✅ Tabela 'servico_imagens' criada (galeria de fotos)")
         
-        # Criar tabela agenda
+        # Criar tabela agenda com suporte para data específica e intervalo
         cursor.execute("""
             CREATE TABLE agenda (
                 id SERIAL PRIMARY KEY,
                 empresa_id INTEGER REFERENCES empresas(id) ON DELETE CASCADE,
-                dia_semana INTEGER NOT NULL,
+                dia_semana INTEGER,
+                data_especifica DATE,
                 hora_inicio TIME NOT NULL,
                 hora_fim TIME NOT NULL,
+                intervalo_inicio TIME,
+                intervalo_fim TIME,
+                is_excecao BOOLEAN DEFAULT FALSE,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT agenda_empresa_id_dia_semana_data_key 
+                UNIQUE (empresa_id, dia_semana, data_especifica)
             )
         """)
-        print("✅ Tabela 'agenda' criada")
+        print("✅ Tabela 'agenda' criada (com data específica e intervalo)")
         
         # Criar tabela agendamentos
         cursor.execute("""
@@ -128,9 +136,11 @@ def criar_tabelas():
         cursor.execute("CREATE INDEX idx_servicos_ativo ON servicos(ativo)")
         cursor.execute("CREATE INDEX idx_servico_imagens_servico ON servico_imagens(servico_id)")
         cursor.execute("CREATE INDEX idx_agenda_empresa ON agenda(empresa_id)")
+        cursor.execute("CREATE INDEX idx_agenda_data_especifica ON agenda(data_especifica)")
         cursor.execute("CREATE INDEX idx_agendamentos_empresa ON agendamentos(empresa_id)")
         cursor.execute("CREATE INDEX idx_agendamentos_telefone ON agendamentos(telefone_cliente)")
         cursor.execute("CREATE INDEX idx_agendamentos_status ON agendamentos(status)")
+        cursor.execute("CREATE INDEX idx_agendamentos_data_hora ON agendamentos(data_hora)")
         cursor.execute("CREATE INDEX idx_empresas_twilio ON empresas(twilio_account_sid)")
         print("✅ Índices criados")
         
@@ -143,9 +153,19 @@ def criar_tabelas():
         print("\n📋 TABELAS CRIADAS:")
         print("   1. empresas")
         print("   2. servicos")
-        print("   3. servico_imagens (nova - galeria de fotos)")
-        print("   4. agenda")
+        print("   3. servico_imagens (galeria de fotos)")
+        print("   4. agenda (com data específica e intervalo)")
         print("   5. agendamentos")
+        
+        print("\n📋 NOVOS CAMPOS NA TABELA 'empresas':")
+        print("   - site (URL do site da empresa)")
+        print("   - whatsapp_adicional (WhatsApp secundário)")
+        print("   - twilio_account_sid (Account SID da Twilio)")
+        print("   - twilio_auth_token (Auth Token da Twilio)")
+        print("   - twilio_whatsapp_number (Número WhatsApp)")
+        print("   - whatsapp_welcome_message (Mensagem de boas-vindas)")
+        print("   - whatsapp_confirmation_message (Mensagem de confirmação)")
+        print("   - whatsapp_cancel_message (Mensagem de cancelamento)")
         
         print("\n📋 NOVOS CAMPOS NA TABELA 'servicos':")
         print("   - imagem (URL da imagem principal)")
@@ -156,13 +176,12 @@ def criar_tabelas():
         print("   - imagem_url (URL da imagem)")
         print("   - ordem (ordem de exibição)")
         
-        print("\n📋 CAMPOS NA TABELA 'empresas':")
-        print("   - twilio_account_sid (Account SID da Twilio)")
-        print("   - twilio_auth_token (Auth Token da Twilio)")
-        print("   - twilio_whatsapp_number (Número WhatsApp)")
-        print("   - whatsapp_welcome_message (Mensagem de boas-vindas)")
-        print("   - whatsapp_confirmation_message (Mensagem de confirmação)")
-        print("   - whatsapp_cancel_message (Mensagem de cancelamento)")
+        print("\n📋 NOVOS CAMPOS NA TABELA 'agenda':")
+        print("   - data_especifica (data para horário especial)")
+        print("   - intervalo_inicio (início do intervalo de almoço)")
+        print("   - intervalo_fim (fim do intervalo de almoço)")
+        print("   - is_excecao (indica se é horário especial)")
+        print("   - dia_semana agora é opcional (NULL para exceções)")
         
         print("\n📋 CAMPOS NA TABELA 'agendamentos':")
         print("   - lembrete_enviado (controle de lembrete)")

@@ -245,3 +245,7 @@ def remover_imagem_servico(
     
     return {"message": "Imagem removida com sucesso"}
 
+
+
+
+

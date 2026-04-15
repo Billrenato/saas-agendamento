@@ -73,8 +73,10 @@ def listar_empresas(
     """
     query = db.query(Empresa).filter(Empresa.ativo == True)
     
+    # Se segmento for fornecido, filtra. Senão, mostra todas (incluindo sem segmento)
     if segmento:
         query = query.filter(Empresa.segmento == segmento)
+    # Não adiciona filtro de segmento quando não tem segmento especificado
     
     empresas = query.offset(skip).limit(limit).all()
     return empresas
@@ -143,8 +145,6 @@ async def upload_logo(
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
-    """Upload da logo da empresa"""
-    
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
     
@@ -155,7 +155,8 @@ async def upload_logo(
     with open(caminho_arquivo, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    url_imagem = f"/uploads/empresas/{nome_arquivo}"
+    # URL COMPLETA
+    url_imagem = f"http://localhost:8000/uploads/empresas/{nome_arquivo}"
     current_empresa.logo = url_imagem
     db.commit()
     
@@ -184,8 +185,6 @@ async def upload_capa(
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
-    """Upload da foto de capa da empresa"""
-    
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
     
@@ -196,7 +195,8 @@ async def upload_capa(
     with open(caminho_arquivo, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    url_imagem = f"/uploads/empresas/{nome_arquivo}"
+    # URL COMPLETA
+    url_imagem = f"http://localhost:8000/uploads/empresas/{nome_arquivo}"
     current_empresa.foto_capa = url_imagem
     db.commit()
     
@@ -277,3 +277,6 @@ def update_whatsapp_messages(
     current_empresa.whatsapp_cancel_message = data.get('whatsapp_cancel_message')
     db.commit()
     return {"message": "Mensagens atualizadas"}
+
+
+

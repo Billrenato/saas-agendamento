@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Time, DateTime
+# app/models/agenda.py
+from sqlalchemy import Column, Integer, String, ForeignKey, Time, DateTime, Boolean, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -8,11 +9,14 @@ class Agenda(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     empresa_id = Column(Integer, ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False)
-    dia_semana = Column(Integer, nullable=False)  # 0=Segunda, 1=Terça, ... 6=Domingo
+    dia_semana = Column(Integer, nullable=True)  # Pode ser NULL para exceções
+    data_especifica = Column(Date, nullable=True)  # Data específica para exceções
     hora_inicio = Column(Time, nullable=False)
     hora_fim = Column(Time, nullable=False)
+    intervalo_inicio = Column(Time, nullable=True)
+    intervalo_fim = Column(Time, nullable=True)
+    is_excecao = Column(Boolean, default=False)
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
     atualizado_em = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relacionamentos
     empresa = relationship("Empresa", back_populates="agenda")

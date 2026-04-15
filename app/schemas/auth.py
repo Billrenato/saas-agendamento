@@ -6,6 +6,12 @@ class EmpresaRegister(BaseModel):
     email: EmailStr
     senha: str
     telefone: str
+    segmento: Optional[str] = None
+    endereco: Optional[str] = None
+    cidade: Optional[str] = None
+    estado: Optional[str] = None
+    cep: Optional[str] = None
+    descricao: Optional[str] = None
 
 class EmpresaLogin(BaseModel):
     email: EmailStr
