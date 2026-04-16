@@ -26,3 +26,6 @@ class Agendamento(Base):
     # Relacionamentos
     empresa = relationship("Empresa", back_populates="agendamentos")
     servico = relationship("Servico", back_populates="agendamentos")
+    # Adicione no final da classe Agendamento:
+    atendente_id = Column(Integer, ForeignKey("atendentes.id", ondelete="SET NULL"), nullable=True)
+    atendente = relationship("Atendente", back_populates="agendamentos")

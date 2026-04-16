@@ -16,6 +16,23 @@ router = APIRouter()
 # Criar pastas de upload
 os.makedirs("uploads/empresas", exist_ok=True)
 
+@router.get("/{empresa_id}/agenda")
+def get_empresa_agenda_publica(
+    empresa_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint público para listar agenda da empresa
+    """
+    from app.models.agenda import Agenda
+    
+    agenda = db.query(Agenda).filter(
+        Agenda.empresa_id == empresa_id,
+        Agenda.data_especifica.is_(None)
+    ).order_by(Agenda.dia_semana).all()
+    
+    return agenda
+
 @router.get("/{empresa_id}", response_model=EmpresaResponse)
 def get_empresa(empresa_id: int, db: Session = Depends(get_db)):
     """

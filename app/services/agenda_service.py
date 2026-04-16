@@ -42,11 +42,17 @@ class AgendaService:
             hora_fim=agenda_data.hora_fim,
             intervalo_inicio=agenda_data.intervalo_inicio,
             intervalo_fim=agenda_data.intervalo_fim,
-            is_excecao=agenda_data.is_excecao or False
+            is_excecao=agenda_data.is_excecao or False,
+            atendente_id=agenda_data.atendente_id  # 👈 NOVO
         )
     
     def get_agenda_by_empresa(self, empresa_id: int) -> List[Agenda]:
         return self.agenda_repo.get_by_empresa(empresa_id)
+    
+    # 👇 NOVO MÉTODO
+    def get_agenda_by_atendente(self, empresa_id: int, atendente_id: int) -> List[Agenda]:
+        """Busca agenda de um atendente específico"""
+        return self.agenda_repo.get_by_atendente(atendente_id, empresa_id)
     
     def get_agenda(self, agenda_id: int, empresa_id: int) -> Optional[Agenda]:
         agenda = self.agenda_repo.get(agenda_id)
@@ -89,7 +95,8 @@ class AgendaService:
             hora_fim=agenda_data.hora_fim,
             intervalo_inicio=agenda_data.intervalo_inicio,
             intervalo_fim=agenda_data.intervalo_fim,
-            is_excecao=agenda_data.is_excecao or False
+            is_excecao=agenda_data.is_excecao or False,
+            atendente_id=agenda_data.atendente_id  # 👈 NOVO
         )
     
     def delete_agenda(self, agenda_id: int, empresa_id: int) -> bool:
@@ -99,7 +106,7 @@ class AgendaService:
         
         return self.agenda_repo.delete(agenda_id)
     
-    def get_horarios_disponiveis(self, empresa_id: int, data: str, servico_id: int = None) -> List[str]:
+    def get_horarios_disponiveis(self, empresa_id: int, data: str, servico_id: int = None, atendente_id: int = None) -> List[str]:
         from datetime import datetime, timedelta
         
         data_obj = datetime.strptime(data, "%Y-%m-%d")
@@ -107,14 +114,18 @@ class AgendaService:
         dia_semana = data_obj.weekday()
         
         # Buscar agenda do dia (prioriza exceção por data específica)
-        agenda = self.agenda_repo.get_by_dia_semana(empresa_id, dia_semana, data_date)
+        agenda = self.agenda_repo.get_by_dia_semana(empresa_id, dia_semana, data_date, atendente_id)
         if not agenda:
             return []
         
-        # Buscar agendamentos do dia
+        # Buscar agendamentos do dia (para o atendente específico)
         from app.repositories.agendamento_repository import AgendamentoRepository
         agendamento_repo = AgendamentoRepository(self.agenda_repo.db)
-        agendamentos = agendamento_repo.get_by_data(empresa_id, data_obj)
+        
+        if atendente_id:
+            agendamentos = agendamento_repo.get_by_atendente_e_data(empresa_id, atendente_id, data_obj)
+        else:
+            agendamentos = agendamento_repo.get_by_data(empresa_id, data_obj)
         
         # Gerar horários disponíveis
         horarios = []

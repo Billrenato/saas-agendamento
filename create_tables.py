@@ -20,6 +20,8 @@ def criar_tabelas():
         print("🗑️  Removendo tabelas existentes...")
         
         # Dropar tabelas na ordem correta (respeitando chaves estrangeiras)
+        cursor.execute("DROP TABLE IF EXISTS atendente_servicos CASCADE")
+        cursor.execute("DROP TABLE IF EXISTS atendentes CASCADE")
         cursor.execute("DROP TABLE IF EXISTS servico_imagens CASCADE")
         cursor.execute("DROP TABLE IF EXISTS agendamentos CASCADE")
         cursor.execute("DROP TABLE IF EXISTS agenda CASCADE")
@@ -29,7 +31,7 @@ def criar_tabelas():
         print("✅ Tabelas antigas removidas")
         print("🔄 Criando novas tabelas...")
         
-        # Criar tabela empresas com todos os campos
+        # 1. Criar tabela empresas
         cursor.execute("""
             CREATE TABLE empresas (
                 id SERIAL PRIMARY KEY,
@@ -62,7 +64,7 @@ def criar_tabelas():
         """)
         print("✅ Tabela 'empresas' criada")
         
-        # Criar tabela servicos (com campo imagem e ativo)
+        # 2. Criar tabela servicos (antes de atendente_servicos)
         cursor.execute("""
             CREATE TABLE servicos (
                 id SERIAL PRIMARY KEY,
@@ -77,9 +79,9 @@ def criar_tabelas():
                 atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        print("✅ Tabela 'servicos' criada (com imagem e ativo)")
+        print("✅ Tabela 'servicos' criada")
         
-        # Criar tabela servico_imagens (para múltiplas fotos)
+        # 3. Criar tabela servico_imagens
         cursor.execute("""
             CREATE TABLE servico_imagens (
                 id SERIAL PRIMARY KEY,
@@ -89,9 +91,38 @@ def criar_tabelas():
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        print("✅ Tabela 'servico_imagens' criada (galeria de fotos)")
+        print("✅ Tabela 'servico_imagens' criada")
         
-        # Criar tabela agenda com suporte para data específica e intervalo
+        # 4. Criar tabela atendentes (antes de agenda e agendamentos)
+        cursor.execute("""
+            CREATE TABLE atendentes (
+                id SERIAL PRIMARY KEY,
+                empresa_id INTEGER REFERENCES empresas(id) ON DELETE CASCADE,
+                nome VARCHAR(100) NOT NULL,
+                email VARCHAR(100),
+                telefone VARCHAR(20),
+                foto TEXT,
+                ativo BOOLEAN DEFAULT TRUE,
+                ordem_exibicao INTEGER DEFAULT 0,
+                criado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        print("✅ Tabela 'atendentes' criada")
+        
+        # 5. Criar tabela atendente_servicos (agora servicos já existe!)
+        cursor.execute("""
+            CREATE TABLE atendente_servicos (
+                id SERIAL PRIMARY KEY,
+                atendente_id INTEGER REFERENCES atendentes(id) ON DELETE CASCADE,
+                servico_id INTEGER REFERENCES servicos(id) ON DELETE CASCADE,
+                criado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(atendente_id, servico_id)
+            )
+        """)
+        print("✅ Tabela 'atendente_servicos' criada")
+        
+        # 6. Criar tabela agenda (com atendente_id)
         cursor.execute("""
             CREATE TABLE agenda (
                 id SERIAL PRIMARY KEY,
@@ -103,20 +134,20 @@ def criar_tabelas():
                 intervalo_inicio TIME,
                 intervalo_fim TIME,
                 is_excecao BOOLEAN DEFAULT FALSE,
+                atendente_id INTEGER REFERENCES atendentes(id) ON DELETE CASCADE,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                CONSTRAINT agenda_empresa_id_dia_semana_data_key 
-                UNIQUE (empresa_id, dia_semana, data_especifica)
+                atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        print("✅ Tabela 'agenda' criada (com data específica e intervalo)")
+        print("✅ Tabela 'agenda' criada")
         
-        # Criar tabela agendamentos
+        # 7. Criar tabela agendamentos (com atendente_id)
         cursor.execute("""
             CREATE TABLE agendamentos (
                 id SERIAL PRIMARY KEY,
                 empresa_id INTEGER REFERENCES empresas(id) ON DELETE CASCADE,
                 servico_id INTEGER REFERENCES servicos(id) ON DELETE SET NULL,
+                atendente_id INTEGER REFERENCES atendentes(id) ON DELETE SET NULL,
                 nome_cliente VARCHAR(255) NOT NULL,
                 telefone_cliente VARCHAR(20) NOT NULL,
                 data_hora TIMESTAMP NOT NULL,
@@ -130,18 +161,37 @@ def criar_tabelas():
         
         # Criar índices
         print("🔄 Criando índices...")
-        cursor.execute("CREATE INDEX idx_empresas_email ON empresas(email)")
-        cursor.execute("CREATE INDEX idx_empresas_segmento ON empresas(segmento)")
-        cursor.execute("CREATE INDEX idx_servicos_empresa ON servicos(empresa_id)")
-        cursor.execute("CREATE INDEX idx_servicos_ativo ON servicos(ativo)")
-        cursor.execute("CREATE INDEX idx_servico_imagens_servico ON servico_imagens(servico_id)")
-        cursor.execute("CREATE INDEX idx_agenda_empresa ON agenda(empresa_id)")
-        cursor.execute("CREATE INDEX idx_agenda_data_especifica ON agenda(data_especifica)")
-        cursor.execute("CREATE INDEX idx_agendamentos_empresa ON agendamentos(empresa_id)")
-        cursor.execute("CREATE INDEX idx_agendamentos_telefone ON agendamentos(telefone_cliente)")
-        cursor.execute("CREATE INDEX idx_agendamentos_status ON agendamentos(status)")
-        cursor.execute("CREATE INDEX idx_agendamentos_data_hora ON agendamentos(data_hora)")
-        cursor.execute("CREATE INDEX idx_empresas_twilio ON empresas(twilio_account_sid)")
+        
+        # Índices empresas
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_empresas_email ON empresas(email)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_empresas_segmento ON empresas(segmento)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_empresas_twilio ON empresas(twilio_account_sid)")
+        
+        # Índices servicos
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_servicos_empresa ON servicos(empresa_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_servicos_ativo ON servicos(ativo)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_servico_imagens_servico ON servico_imagens(servico_id)")
+        
+        # Índices atendentes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_atendentes_empresa ON atendentes(empresa_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_atendentes_email ON atendentes(email)")
+        
+        # Índices atendente_servicos
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_atendente_servicos_atendente ON atendente_servicos(atendente_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_atendente_servicos_servico ON atendente_servicos(servico_id)")
+        
+        # Índices agenda
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agenda_empresa ON agenda(empresa_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agenda_data_especifica ON agenda(data_especifica)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agenda_atendente ON agenda(atendente_id)")
+        
+        # Índices agendamentos
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agendamentos_empresa ON agendamentos(empresa_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agendamentos_telefone ON agendamentos(telefone_cliente)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agendamentos_status ON agendamentos(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agendamentos_data_hora ON agendamentos(data_hora)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agendamentos_atendente ON agendamentos(atendente_id)")
+        
         print("✅ Índices criados")
         
         cursor.close()
@@ -150,41 +200,14 @@ def criar_tabelas():
         print("\n" + "="*60)
         print("✅ TODAS AS TABELAS FORAM CRIADAS COM SUCESSO!")
         print("="*60)
-        print("\n📋 TABELAS CRIADAS:")
+        print("\n📋 TABELAS CRIADAS NA ORDEM CORRETA:")
         print("   1. empresas")
         print("   2. servicos")
-        print("   3. servico_imagens (galeria de fotos)")
-        print("   4. agenda (com data específica e intervalo)")
-        print("   5. agendamentos")
-        
-        print("\n📋 NOVOS CAMPOS NA TABELA 'empresas':")
-        print("   - site (URL do site da empresa)")
-        print("   - whatsapp_adicional (WhatsApp secundário)")
-        print("   - twilio_account_sid (Account SID da Twilio)")
-        print("   - twilio_auth_token (Auth Token da Twilio)")
-        print("   - twilio_whatsapp_number (Número WhatsApp)")
-        print("   - whatsapp_welcome_message (Mensagem de boas-vindas)")
-        print("   - whatsapp_confirmation_message (Mensagem de confirmação)")
-        print("   - whatsapp_cancel_message (Mensagem de cancelamento)")
-        
-        print("\n📋 NOVOS CAMPOS NA TABELA 'servicos':")
-        print("   - imagem (URL da imagem principal)")
-        print("   - ativo (para desativar serviços)")
-        
-        print("\n📋 NOVA TABELA 'servico_imagens':")
-        print("   - servico_id (relacionamento com serviço)")
-        print("   - imagem_url (URL da imagem)")
-        print("   - ordem (ordem de exibição)")
-        
-        print("\n📋 NOVOS CAMPOS NA TABELA 'agenda':")
-        print("   - data_especifica (data para horário especial)")
-        print("   - intervalo_inicio (início do intervalo de almoço)")
-        print("   - intervalo_fim (fim do intervalo de almoço)")
-        print("   - is_excecao (indica se é horário especial)")
-        print("   - dia_semana agora é opcional (NULL para exceções)")
-        
-        print("\n📋 CAMPOS NA TABELA 'agendamentos':")
-        print("   - lembrete_enviado (controle de lembrete)")
+        print("   3. servico_imagens")
+        print("   4. atendentes")
+        print("   5. atendente_servicos")
+        print("   6. agenda (com atendente_id)")
+        print("   7. agendamentos (com atendente_id)")
         
     except Exception as e:
         print(f"❌ Erro: {e}")

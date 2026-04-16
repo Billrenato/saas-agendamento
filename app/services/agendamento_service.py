@@ -21,11 +21,29 @@ class AgendamentoService:
         if not servico:
             raise ValueError("Serviço não encontrado")
         
-        # Verificar conflito de horário
+        # 👇 NOVO: Verificar atendente (se foi informado)
+        atendente_nome = None
+        if agendamento_data.atendente_id:
+            from app.repositories.atendente_repository import AtendenteRepository
+            atendente_repo = AtendenteRepository(self.agendamento_repo.db)
+            atendente = atendente_repo.get(agendamento_data.atendente_id)
+            
+            if not atendente or atendente.empresa_id != servico.empresa_id:
+                raise ValueError("Atendente não encontrado ou não pertence à empresa")
+            
+            # Verificar se o atendente faz este serviço
+            servicos_do_atendente = atendente_repo.get_servicos_do_atendente(atendente.id)
+            if servico.id not in servicos_do_atendente:
+                raise ValueError(f"Atendente {atendente.nome} não realiza o serviço {servico.nome}")
+            
+            atendente_nome = atendente.nome
+        
+        # Verificar conflito de horário (agora considerando atendente)
         conflito = self.agendamento_repo.check_conflict(
             servico.empresa_id,
             agendamento_data.data_hora,
-            servico.duracao_minutos
+            servico.duracao_minutos,
+            atendente_id=agendamento_data.atendente_id  # 👈 NOVO
         )
         
         if conflito:
@@ -38,7 +56,8 @@ class AgendamentoService:
             nome_cliente=agendamento_data.nome_cliente,
             telefone_cliente=agendamento_data.telefone_cliente,
             data_hora=agendamento_data.data_hora,
-            status=StatusAgendamento.PENDENTE
+            status=StatusAgendamento.PENDENTE,
+            atendente_id=agendamento_data.atendente_id  # 👈 NOVO
         )
         
         # Enviar mensagem de boas-vindas
@@ -59,24 +78,26 @@ class AgendamentoService:
             if empresa.whatsapp_welcome_message:
                 mensagem = empresa.whatsapp_welcome_message
             else:
-                # Mensagem padrão
+                # Mensagem padrão com atendente
                 mensagem = f"""👋 Olá {agendamento_data.nome_cliente}!
 
-    Recebemos sua solicitação de agendamento na {empresa.nome}.
+Recebemos sua solicitação de agendamento na {empresa.nome}.
 
-    📋 Serviço: {servico.nome}
-    📅 Data: {agendamento_data.data_hora.strftime('%d/%m/%Y')}
-    ⏰ Horário: {agendamento_data.data_hora.strftime('%H:%M')}
+📋 Serviço: {servico.nome}
+👤 Atendente: {atendente_nome if atendente_nome else 'Nossa equipe'}
+📅 Data: {agendamento_data.data_hora.strftime('%d/%m/%Y')}
+⏰ Horário: {agendamento_data.data_hora.strftime('%H:%M')}
 
-    ✅ Em breve confirmaremos seu horário.
-    🔍 Você pode acompanhar o status em "Meus Agendamentos" no nosso site.
+✅ Em breve confirmaremos seu horário.
+🔍 Você pode acompanhar o status em "Meus Agendamentos" no nosso site.
 
-    Agradecemos a preferência!"""
+Agradecemos a preferência!"""
             
             # Substituir variáveis
             mensagem = mensagem.replace('{cliente_nome}', agendamento_data.nome_cliente)
             mensagem = mensagem.replace('{empresa_nome}', empresa.nome)
             mensagem = mensagem.replace('{servico_nome}', servico.nome)
+            mensagem = mensagem.replace('{atendente_nome}', atendente_nome if atendente_nome else '')
             mensagem = mensagem.replace('{data}', agendamento_data.data_hora.strftime('%d/%m/%Y'))
             mensagem = mensagem.replace('{horario}', agendamento_data.data_hora.strftime('%H:%M'))
             
@@ -97,8 +118,41 @@ class AgendamentoService:
         
         return agendamento
     
-    def get_agendamentos_by_empresa(self, empresa_id: int, skip: int = 0, limit: int = 100) -> List[Agendamento]:
-        return self.agendamento_repo.get_by_empresa(empresa_id, skip, limit)
+    def get_agendamentos_by_empresa(self, empresa_id: int, skip: int = 0, limit: int = 100):
+        """
+        Retorna lista de agendamentos com servico_nome e atendente_nome incluídos
+        """
+        agendamentos = self.agendamento_repo.get_by_empresa(empresa_id, skip, limit)
+        
+        # Converte cada agendamento para dicionário com servico_nome e atendente_nome
+        result = []
+        for ag in agendamentos:
+            servico = self.servico_repo.get(ag.servico_id)
+            
+            # Buscar nome do atendente
+            atendente_nome = None
+            if ag.atendente_id:
+                from app.repositories.atendente_repository import AtendenteRepository
+                atendente_repo = AtendenteRepository(self.agendamento_repo.db)
+                atendente = atendente_repo.get(ag.atendente_id)
+                atendente_nome = atendente.nome if atendente else None
+            
+            result.append({
+                "id": ag.id,
+                "empresa_id": ag.empresa_id,
+                "servico_id": ag.servico_id,
+                "nome_cliente": ag.nome_cliente,
+                "telefone_cliente": ag.telefone_cliente,
+                "data_hora": ag.data_hora,
+                "status": ag.status.value if hasattr(ag.status, 'value') else ag.status,
+                "criado_em": ag.criado_em,
+                "atualizado_em": ag.atualizado_em,
+                "servico_nome": servico.nome if servico else None,
+                "atendente_nome": atendente_nome,  # 👈 NOVO
+                "atendente_id": ag.atendente_id  # 👈 NOVO
+            })
+        
+        return result
     
     def get_agendamento(self, agendamento_id: int, empresa_id: int) -> Optional[Agendamento]:
         agendamento = self.agendamento_repo.get(agendamento_id)
@@ -119,6 +173,14 @@ class AgendamentoService:
         
         empresa = self.empresa_repo.get(empresa_id)
         servico = self.servico_repo.get(agendamento.servico_id)
+        
+        # Buscar nome do atendente
+        atendente_nome = None
+        if agendamento.atendente_id:
+            from app.repositories.atendente_repository import AtendenteRepository
+            atendente_repo = AtendenteRepository(self.agendamento_repo.db)
+            atendente = atendente_repo.get(agendamento.atendente_id)
+            atendente_nome = atendente.nome if atendente else None
         
         if not empresa.twilio_account_sid or not empresa.twilio_auth_token:
             print("❌ Empresa não configurou WhatsApp")
@@ -144,13 +206,14 @@ class AgendamentoService:
             else:
                 mensagem = f"""✅ Agendamento confirmado!
 
-    👤 Cliente: {agendamento.nome_cliente}
-    ✂️ Serviço: {servico.nome}
-    📅 Data: {agendamento.data_hora.strftime('%d/%m/%Y')}
-    ⏰ Horário: {agendamento.data_hora.strftime('%H:%M')}
-    🏢 Empresa: {empresa.nome}{endereco_completo}
+👤 Cliente: {agendamento.nome_cliente}
+✂️ Serviço: {servico.nome}
+👤 Atendente: {atendente_nome if atendente_nome else 'Nossa equipe'}
+📅 Data: {agendamento.data_hora.strftime('%d/%m/%Y')}
+⏰ Horário: {agendamento.data_hora.strftime('%H:%M')}
+🏢 Empresa: {empresa.nome}{endereco_completo}
 
-    Qualquer dúvida, entre em contato conosco pelo WhatsApp: {empresa.telefone}"""
+Qualquer dúvida, entre em contato conosco pelo WhatsApp: {empresa.telefone}"""
         
         # Mensagem para RECUSADO
         elif status == StatusAgendamento.RECUSADO:
@@ -161,22 +224,24 @@ class AgendamentoService:
             else:
                 mensagem = f"""❌ Agendamento recusado!
 
-    👤 Cliente: {agendamento.nome_cliente}
-    ✂️ Serviço: {servico.nome}
-    📅 Data: {agendamento.data_hora.strftime('%d/%m/%Y')}
-    ⏰ Horário: {agendamento.data_hora.strftime('%H:%M')}
-    🏢 Empresa: {empresa.nome}{endereco_completo}
+👤 Cliente: {agendamento.nome_cliente}
+✂️ Serviço: {servico.nome}
+👤 Atendente: {atendente_nome if atendente_nome else 'Nossa equipe'}
+📅 Data: {agendamento.data_hora.strftime('%d/%m/%Y')}
+⏰ Horário: {agendamento.data_hora.strftime('%H:%M')}
+🏢 Empresa: {empresa.nome}{endereco_completo}
 
-    Infelizmente não foi possível confirmar seu agendamento.
-    Entre em contato conosco pelo WhatsApp: {empresa.telefone}
+Infelizmente não foi possível confirmar seu agendamento.
+Entre em contato conosco pelo WhatsApp: {empresa.telefone}
 
-    Desculpe pelo transtorno."""
+Desculpe pelo transtorno."""
         else:
             return agendamento
         
         # Substituir variáveis
         mensagem = mensagem.replace('{cliente_nome}', agendamento.nome_cliente)
         mensagem = mensagem.replace('{servico_nome}', servico.nome)
+        mensagem = mensagem.replace('{atendente_nome}', atendente_nome if atendente_nome else '')
         mensagem = mensagem.replace('{data}', agendamento.data_hora.strftime('%d/%m/%Y'))
         mensagem = mensagem.replace('{horario}', agendamento.data_hora.strftime('%H:%M'))
         mensagem = mensagem.replace('{empresa_nome}', empresa.nome)

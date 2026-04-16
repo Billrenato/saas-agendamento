@@ -43,3 +43,4 @@ class Empresa(Base):
     servicos = relationship("Servico", back_populates="empresa", cascade="all, delete-orphan")
     agenda = relationship("Agenda", back_populates="empresa", cascade="all, delete-orphan")
     agendamentos = relationship("Agendamento", back_populates="empresa", cascade="all, delete-orphan")
+    atendentes = relationship("Atendente", back_populates="empresa", cascade="all, delete-orphan")

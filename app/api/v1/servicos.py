@@ -246,6 +246,40 @@ def remover_imagem_servico(
     return {"message": "Imagem removida com sucesso"}
 
 
+@router.get("/por-atendente/{atendente_id}", response_model=List[ServicoResponse])
+def list_servicos_por_atendente(
+    atendente_id: int,
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """
+    Lista os serviços que um atendente específico pode realizar
+    """
+    from app.services.atendente_service import AtendenteService
+    
+    # Verificar se o atendente existe e pertence à empresa
+    atendente_service = AtendenteService(db)
+    atendente = atendente_service.get_atendente(atendente_id, current_empresa.id)
+    
+    if not atendente:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Atendente não encontrado"
+        )
+    
+    # Buscar IDs dos serviços que o atendente faz
+    servico_ids = atendente_service.get_servicos_do_atendente(atendente_id, current_empresa.id)
+    
+    if not servico_ids:
+        return []
+    
+    # Buscar os serviços completos
+    servico_service = ServicoService(db)
+    servicos = servico_service.get_servicos_by_ids(servico_ids, current_empresa.id)
+    
+    return servicos
+
+
 
 
 

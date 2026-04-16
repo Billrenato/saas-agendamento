@@ -1,24 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.agenda_service import AgendaService
 from app.schemas.agenda import AgendaCreate, AgendaResponse
 from app.api.deps import get_current_empresa
 from app.models.empresa import Empresa
-from typing import List
+from typing import List, Optional
 
 router = APIRouter()
 
 @router.get("/", response_model=List[AgendaResponse])
 def list_agenda(
+    atendente_id: Optional[int] = Query(None, description="Filtrar por atendente específico"),
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
     """
-    Lista toda a agenda da empresa autenticada
+    Lista toda a agenda da empresa autenticada.
+    Pode filtrar por atendente_id.
     """
     agenda_service = AgendaService(db)
-    agenda = agenda_service.get_agenda_by_empresa(current_empresa.id)
+    
+    if atendente_id:
+        # Buscar agenda de um atendente específico
+        agenda = agenda_service.get_agenda_by_atendente(current_empresa.id, atendente_id)
+    else:
+        # Buscar agenda geral (sem atendente)
+        agenda = agenda_service.get_agenda_by_empresa(current_empresa.id)
+    
     return agenda
 
 @router.post("/", response_model=AgendaResponse, status_code=status.HTTP_201_CREATED)
@@ -28,7 +37,9 @@ def create_agenda(
     db: Session = Depends(get_db)
 ):
     """
-    Cria um novo horário de funcionamento
+    Cria um novo horário de funcionamento.
+    Se atendente_id for informado, cria agenda para aquele atendente.
+    Se não, cria agenda geral da empresa.
     """
     agenda_service = AgendaService(db)
     try:

@@ -26,21 +26,42 @@ class AgendamentoRepository(BaseRepository[Agendamento]):
             )
         ).all()
     
-    def check_conflict(self, empresa_id: int, data_hora: datetime, duracao_minutos: int) -> bool:
+    # 👇 NOVO MÉTODO: Buscar agendamentos por atendente e data
+    def get_by_atendente_e_data(self, empresa_id: int, atendente_id: int, data: datetime) -> List[Agendamento]:
+        """Busca agendamentos de um atendente específico em uma data"""
+        start = datetime(data.year, data.month, data.day, 0, 0, 0)
+        end = datetime(data.year, data.month, data.day, 23, 59, 59)
+        return self.db.query(Agendamento).filter(
+            and_(
+                Agendamento.empresa_id == empresa_id,
+                Agendamento.atendente_id == atendente_id,
+                Agendamento.data_hora >= start,
+                Agendamento.data_hora <= end,
+                Agendamento.status.in_([StatusAgendamento.PENDENTE, StatusAgendamento.ACEITO])
+            )
+        ).all()
+    
+    # 👇 MÉTODO MODIFICADO: check_conflict agora aceita atendente_id
+    def check_conflict(self, empresa_id: int, data_hora: datetime, duracao_minutos: int, atendente_id: Optional[int] = None) -> bool:
         from datetime import timedelta
-        from sqlalchemy import and_
         
         end_time = data_hora + timedelta(minutes=duracao_minutos)
         
-        # Buscar todos agendamentos ativos da empresa
-        agendamentos = self.db.query(Agendamento).filter(
+        # Buscar agendamentos ativos da empresa (ou do atendente específico)
+        query = self.db.query(Agendamento).filter(
             and_(
                 Agendamento.empresa_id == empresa_id,
                 Agendamento.status.in_([StatusAgendamento.PENDENTE, StatusAgendamento.ACEITO])
             )
-        ).all()
+        )
         
-        # Verificar conflito em Python (mais simples e evita erros de SQL)
+        # Se tem atendente específico, filtra por ele
+        if atendente_id:
+            query = query.filter(Agendamento.atendente_id == atendente_id)
+        
+        agendamentos = query.all()
+        
+        # Verificar conflito em Python
         for ag in agendamentos:
             ag_end = ag.data_hora + timedelta(minutes=ag.servico.duracao_minutos)
             if (data_hora < ag_end and end_time > ag.data_hora):

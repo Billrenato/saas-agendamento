@@ -21,3 +21,4 @@ class Servico(Base):
     # Relacionamentos
     empresa = relationship("Empresa", back_populates="servicos")
     agendamentos = relationship("Agendamento", back_populates="servico")
+    atendentes = relationship("AtendenteServico", back_populates="servico", cascade="all, delete-orphan")

@@ -14,6 +14,7 @@ class AgendamentoBase(BaseModel):
     telefone_cliente: str
     data_hora: datetime
     servico_id: int
+    atendente_id: Optional[int] = None  # 👈 NOVO
 
 class AgendamentoCreate(AgendamentoBase):
     pass
@@ -23,6 +24,8 @@ class AgendamentoResponse(AgendamentoBase):
     empresa_id: int
     status: StatusAgendamento
     criado_em: datetime
+    servico_nome: Optional[str] = None  # 👈 JÁ TINHA
+    atendente_nome: Optional[str] = None  # 👈 NOVO
     
     class Config:
         from_attributes = True

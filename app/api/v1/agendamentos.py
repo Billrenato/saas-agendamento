@@ -103,6 +103,7 @@ def consultar_agendamentos_publico(
     """
     from app.models.empresa import Empresa
     from app.models.servico import Servico
+    from app.models.atendente import Atendente 
     
     telefone_limpo = ''.join(filter(str.isdigit, telefone))
     
@@ -117,10 +118,17 @@ def consultar_agendamentos_publico(
         empresa = db.query(Empresa).filter(Empresa.id == ag.empresa_id).first()
         servico = db.query(Servico).filter(Servico.id == ag.servico_id).first()
         
+        # 👈 BUSCAR O NOME DO ATENDENTE CORRETAMENTE
+        atendente_nome = None
+        if ag.atendente_id:
+            atendente = db.query(Atendente).filter(Atendente.id == ag.atendente_id).first()
+            atendente_nome = atendente.nome if atendente else None
+        
         result.append({
             "id": ag.id,
             "empresa_nome": empresa.nome if empresa else "",
             "servico_nome": servico.nome if servico else "",
+            "atendente_nome": atendente_nome,  # 👈 AGORA ESTÁ DEFINIDO
             "data_hora": ag.data_hora.strftime("%d/%m/%Y às %H:%M"),
             "status": ag.status.value if hasattr(ag.status, 'value') else str(ag.status),
             "criado_em": ag.criado_em.strftime("%d/%m/%Y %H:%M") if ag.criado_em else ""

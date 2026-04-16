@@ -20,3 +20,5 @@ class Agenda(Base):
     atualizado_em = Column(DateTime(timezone=True), onupdate=func.now())
     
     empresa = relationship("Empresa", back_populates="agenda")
+    atendente_id = Column(Integer, ForeignKey("atendentes.id", ondelete="CASCADE"), nullable=True)
+    atendente = relationship("Atendente", back_populates="agenda")
