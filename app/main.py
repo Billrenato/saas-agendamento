@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
-from app.api.v1 import auth, empresas, servicos, agenda, agendamentos, atendentes  
+from app.api.v1 import auth, empresas, servicos, agenda, agendamentos, atendentes, admin  # 👈 ADICIONOU admin
 from app.api.v1.agendamentos import public_router 
 import os
 
@@ -37,7 +37,8 @@ app.include_router(empresas.router, prefix="/api/v1/empresas", tags=["Empresas"]
 app.include_router(servicos.router, prefix="/api/v1/servicos", tags=["Serviços"])
 app.include_router(agenda.router, prefix="/api/v1/agenda", tags=["Agenda"])
 app.include_router(agendamentos.router, prefix="/api/v1/agendamentos", tags=["Agendamentos"])
-app.include_router(atendentes.router, prefix="/api/v1/atendentes", tags=["Atendentes"])  # 👈 NOVO
+app.include_router(atendentes.router, prefix="/api/v1/atendentes", tags=["Atendentes"])
+app.include_router(admin.router, prefix="/api/v1", tags=["Administração"])  # 👈 ADICIONOU
 app.include_router(public_router, prefix="/api/v1")
 
 @app.get("/")
