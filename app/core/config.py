@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: Union[str, List[str]] = ["http://localhost:3000", "http://localhost:5173"]
     
-    # 👇 ADICIONE ESTES CAMPOS
+    # Upload
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE: int = 5242880
     
@@ -50,5 +50,12 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"
+    
+    # 👇 ADICIONE ESTA PROPRIEDADE
+    @property
+    def BASE_URL(self) -> str:
+        if self.is_production:
+            return "https://agendei-api-9aij.onrender.com"
+        return "http://localhost:8000"
     
 settings = Settings()
