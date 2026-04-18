@@ -18,8 +18,13 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: Optional[str] = None
     WHATSAPP_BUSINESS_ACCOUNT_ID: Optional[str] = None
     
+    # Environment
     ENVIRONMENT: str = "development"
     ALLOWED_ORIGINS: Union[str, List[str]] = ["http://localhost:3000", "http://localhost:5173"]
+    
+    # 👇 ADICIONE ESTES CAMPOS
+    UPLOAD_DIR: str = "uploads"
+    MAX_UPLOAD_SIZE: int = 5242880
     
     class Config:
         env_file = ".env"
@@ -34,4 +39,16 @@ class Settings(BaseSettings):
             except:
                 self.ALLOWED_ORIGINS = [self.ALLOWED_ORIGINS]
 
+    @property
+    def twilio_configured(self) -> bool:
+        return bool(self.TWILIO_ACCOUNT_SID and self.TWILIO_AUTH_TOKEN and self.TWILIO_WHATSAPP_NUMBER)
+    
+    @property
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT == "development"
+    
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT == "production"
+    
 settings = Settings()

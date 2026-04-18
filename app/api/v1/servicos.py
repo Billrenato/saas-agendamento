@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.servico_service import ServicoService
 from app.schemas.servico import ServicoCreate, ServicoResponse
-from app.api.deps import get_current_empresa
+from app.api.v1.deps import get_current_empresa
 from app.models.empresa import Empresa
 from app.models.servico import Servico
 from typing import List

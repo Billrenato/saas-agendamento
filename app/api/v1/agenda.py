@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.agenda_service import AgendaService
 from app.schemas.agenda import AgendaCreate, AgendaResponse
-from app.api.deps import get_current_empresa
+from app.api.v1.deps import get_current_empresa
 from app.models.empresa import Empresa
 from typing import List, Optional
 

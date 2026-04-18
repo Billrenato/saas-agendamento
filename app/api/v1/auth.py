@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.auth import EmpresaRegister, EmpresaLogin, Token
 from app.services.auth_service import AuthService
-from app.api.deps import get_current_empresa
+from app.api.v1.deps import get_current_empresa
 from app.schemas.empresa import EmpresaResponse
 
 router = APIRouter()

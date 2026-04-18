@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.empresa_service import EmpresaService
 from app.schemas.empresa import EmpresaResponse, EmpresaCreate
-from app.api.deps import get_current_empresa
+from app.api.v1.deps import get_current_empresa
 from app.models.empresa import Empresa
 from app.repositories.empresa_repository import EmpresaRepository
 import os
