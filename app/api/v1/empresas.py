@@ -173,7 +173,7 @@ async def upload_logo(
         shutil.copyfileobj(file.file, buffer)
     
     # URL COMPLETA
-    url_imagem = f"http://localhost:8000/uploads/empresas/{nome_arquivo}"
+    url_imagem = f"{settings.BASE_URL}/uploads/empresas/{nome_arquivo}"
     current_empresa.logo = url_imagem
     db.commit()
     
@@ -213,7 +213,7 @@ async def upload_capa(
         shutil.copyfileobj(file.file, buffer)
     
     # URL COMPLETA
-    url_imagem = f"http://localhost:8000/uploads/empresas/{nome_arquivo}"
+    url_imagem = f"{settings.BASE_URL}/uploads/empresas/{nome_arquivo}"
     current_empresa.foto_capa = url_imagem
     db.commit()
     
