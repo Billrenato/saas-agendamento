@@ -21,15 +21,21 @@ class Settings(BaseSettings):
     
     # Environment
     ENVIRONMENT: str = "development"
-    ALLOWED_ORIGINS: Union[str, List[str]] = ["http://localhost:3000", "http://localhost:5173"]
+    ALLOWED_ORIGINS: Union[str, List[str]] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://saas-agendamentos-frontend.vercel.app",  # ← ADICIONE SEU FRONTEND
+        "https://*.vercel.app"  # ← Permite qualquer subdomínio do Vercel
+    ]
     
     # Upload
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE: int = 5242880
 
-    CLOUDINARY_CLOUD_NAME: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
-    CLOUDINARY_API_KEY: str = os.getenv("CLOUDINARY_API_KEY", "")
-    CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
+    # Cloudinary
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
     
     class Config:
         env_file = ".env"
@@ -56,7 +62,6 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"
     
-    # 👇 ADICIONE ESTA PROPRIEDADE
     @property
     def BASE_URL(self) -> str:
         if self.is_production:
