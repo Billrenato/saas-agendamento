@@ -121,22 +121,22 @@ class AgendaService:
         try:
             data_obj = datetime.strptime(data, "%Y-%m-%d")
             data_date = data_obj.date()
-            logger.info(f"🔍 Data recebida: {data}, parseada: {data_date}")
+            print(f"🔍 [1] Data recebida: {data}, parseada: {data_date}")
         except ValueError as e:
-            logger.error(f"❌ Erro ao parsear data {data}: {e}")
+            print(f"❌ Erro ao parsear data {data}: {e}")
             return []
         
         dia_semana = data_obj.weekday()
-        logger.info(f"🔍 Dia da semana: {dia_semana}")
+        print(f"🔍 [2] Dia da semana: {dia_semana}")
         
         # 2. Buscar agenda do dia
         agenda = self.agenda_repo.get_by_dia_semana(empresa_id, dia_semana, data_date, atendente_id)
         
         if not agenda:
-            logger.warning(f"⚠️ Nenhuma agenda encontrada para {data_date}")
+            print(f"⚠️ [3] NENHUMA agenda encontrada para {data_date}")
             return []
         
-        logger.info(f"✅ Agenda encontrada: ID={agenda.id}, hora_inicio={agenda.hora_inicio}, hora_fim={agenda.hora_fim}")
+        print(f"✅ [4] Agenda encontrada: ID={agenda.id}, hora_inicio={agenda.hora_inicio}, hora_fim={agenda.hora_fim}")
         
         # 3. Definir duração do serviço
         duracao_minutos = 30
@@ -145,37 +145,40 @@ class AgendaService:
             servico = servico_repo.get(servico_id)
             if servico and servico.duracao_minutos:
                 duracao_minutos = servico.duracao_minutos
-                logger.info(f"✅ Serviço duração: {duracao_minutos} minutos")
+                print(f"✅ [5] Serviço duração: {duracao_minutos} minutos")
+            else:
+                print(f"⚠️ [5] Serviço ID {servico_id} não encontrado")
         
         # 4. Buscar agendamentos do dia
         agendamento_repo = AgendamentoRepository(self.agenda_repo.db)
         
         if atendente_id:
             agendamentos = agendamento_repo.get_by_atendente_e_data(empresa_id, atendente_id, data_obj)
-            logger.info(f"📅 Encontrados {len(agendamentos)} agendamentos para o atendente {atendente_id}")
+            print(f"📅 [6] Encontrados {len(agendamentos)} agendamentos para o atendente {atendente_id}")
         else:
             agendamentos = agendamento_repo.get_by_data(empresa_id, data_obj)
-            logger.info(f"📅 Encontrados {len(agendamentos)} agendamentos totais")
+            print(f"📅 [6] Encontrados {len(agendamentos)} agendamentos totais")
         
         # 5. Gerar horários disponíveis
         horarios = []
         hora_atual = datetime.combine(data_date, agenda.hora_inicio)
         hora_fim = datetime.combine(data_date, agenda.hora_fim)
         
+        print(f"⏰ [7] Gerando horários entre {hora_atual} e {hora_fim}")
+        
         intervalo_inicio = None
         intervalo_fim = None
         if agenda.intervalo_inicio and agenda.intervalo_fim:
             intervalo_inicio = datetime.combine(data_date, agenda.intervalo_inicio)
             intervalo_fim = datetime.combine(data_date, agenda.intervalo_fim)
-            logger.info(f"🍽️ Intervalo: {intervalo_inicio} - {intervalo_fim}")
+            print(f"🍽️ Intervalo: {intervalo_inicio} - {intervalo_fim}")
         
         while hora_atual + timedelta(minutes=duracao_minutos) <= hora_fim:
-            # Verificar intervalo de almoço
             if intervalo_inicio and intervalo_fim and intervalo_inicio <= hora_atual < intervalo_fim:
+                print(f"⏭️ Pulando intervalo: {hora_atual}")
                 hora_atual = intervalo_fim
                 continue
             
-            # Verificar conflitos
             conflito = False
             for agendamento in agendamentos:
                 ag_fim = agendamento.data_hora + timedelta(minutes=agendamento.servico.duracao_minutos)
@@ -188,5 +191,5 @@ class AgendaService:
             
             hora_atual += timedelta(minutes=30)
         
-        logger.info(f"🎉 Total de horários disponíveis: {len(horarios)}")
+        print(f"🎉 [8] Total de horários disponíveis: {len(horarios)}")
         return horarios
