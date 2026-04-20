@@ -83,12 +83,13 @@ def create_atendente(
 @router.get("/{atendente_id}", response_model=AtendenteResponse)
 def get_atendente(
     atendente_id: int,
-    current_empresa: Empresa = Depends(get_current_empresa),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db)  # 👈 REMOVA current_empresa
 ):
-    """Obtém detalhes de um atendente específico"""
+    """Obtém detalhes de um atendente específico (público)"""
+    from app.services.atendente_service import AtendenteService
+    
     service = AtendenteService(db)
-    atendente = service.get_atendente(atendente_id, current_empresa.id)
+    atendente = service.get_atendente(atendente_id)  # 👈 Método sem empresa_id
     
     if not atendente:
         raise HTTPException(status_code=404, detail="Atendente não encontrado")
@@ -96,7 +97,7 @@ def get_atendente(
     # Buscar serviços
     from app.repositories.servico_repository import ServicoRepository
     servico_repo = ServicoRepository(db)
-    servico_ids = service.get_servicos_do_atendente(atendente_id, current_empresa.id)
+    servico_ids = service.get_servicos_do_atendente(atendente_id, atendente.empresa_id)
     servicos = [servico_repo.get(sid) for sid in servico_ids if servico_repo.get(sid)]
     
     return {

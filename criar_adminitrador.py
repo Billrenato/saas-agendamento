@@ -6,7 +6,7 @@ DB_CONFIG = {
     "port": 5432,
     "database": "saas_agendamento",
     "user": "postgres",
-    "password": "010203"
+    "password": "@nota1000"
 }
 
 email = "renatojrmathias94@gmail.com"  # 👈 COLOQUE SEU EMAIL

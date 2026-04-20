@@ -193,31 +193,24 @@ async def upload_imagem_servico(
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
     
-    # Criar pasta
-    os.makedirs("uploads/servicos", exist_ok=True)
+    # Ler o conteúdo do arquivo
+    contents = await file.read()
     
-    # Gerar nome único
-    extensao = file.filename.split('.')[-1]
-    nome_arquivo = f"servico_{servico_id}_{uuid.uuid4()}.{extensao}"
-    caminho_arquivo = f"uploads/servicos/{nome_arquivo}"
+    # Upload para Cloudinary
+    cloudinary_service = CloudinaryService()
+    imagem_url = await cloudinary_service.upload_image(
+        contents, 
+        f"servicos/{current_empresa.id}/{servico_id}"
+    )
     
-    # Salvar arquivo
-    with open(caminho_arquivo, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    url_imagem = f"http://localhost:8000/uploads/servicos/{nome_arquivo}"
-    
-    # SALVAR NO BANCO
-    servico.imagem = url_imagem
+    # Salvar URL no banco
+    servico.imagem = imagem_url
     db.commit()
-    db.refresh(servico)  # ← ADICIONE ESTA LINHA
+    db.refresh(servico)
     
-    print(f"DEBUG: Serviço ID: {servico_id}")
-    print(f"DEBUG: URL salva: {url_imagem}")
-    print(f"DEBUG: Serviço após commit: {servico.imagem}")
-    
-    return {"url": url_imagem, "message": "Imagem enviada com sucesso"}
+    return {"url": imagem_url, "message": "Imagem enviada com sucesso"}
 
+# SUBSTITUA o endpoint /remover-imagem por este:
 @router.delete("/{servico_id}/remover-imagem")
 def remover_imagem_servico(
     servico_id: int,
@@ -234,12 +227,7 @@ def remover_imagem_servico(
     if not servico:
         raise HTTPException(status_code=404, detail="Serviço não encontrado")
     
-    # Remover arquivo do disco
-    if servico.imagem and servico.imagem.startswith('/uploads/'):
-        caminho_arquivo = servico.imagem[1:]
-        if os.path.exists(caminho_arquivo):
-            os.remove(caminho_arquivo)
-    
+    # Só remove a referência no banco (Cloudinary gerencia o arquivo)
     servico.imagem = None
     db.commit()
     

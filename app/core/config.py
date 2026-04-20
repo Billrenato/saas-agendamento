@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from typing import Optional, List, Union
 import json
+import os
 
 class Settings(BaseSettings):
     DATABASE_URL: str
@@ -25,6 +26,10 @@ class Settings(BaseSettings):
     # Upload
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE: int = 5242880
+
+    CLOUDINARY_CLOUD_NAME: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+    CLOUDINARY_API_KEY: str = os.getenv("CLOUDINARY_API_KEY", "")
+    CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
     
     class Config:
         env_file = ".env"

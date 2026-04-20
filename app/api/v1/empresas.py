@@ -10,6 +10,7 @@ from app.repositories.empresa_repository import EmpresaRepository
 import os
 import uuid
 import shutil
+from app.services.cloudinary_service import CloudinaryService
 
 router = APIRouter()
 
@@ -162,39 +163,26 @@ async def upload_logo(
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
+    # Validar se é imagem
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
     
-    extensao = file.filename.split('.')[-1]
-    nome_arquivo = f"logo_{current_empresa.id}_{uuid.uuid4()}.{extensao}"
-    caminho_arquivo = f"uploads/empresas/{nome_arquivo}"
+    # Ler o conteúdo do arquivo
+    contents = await file.read()
     
-    with open(caminho_arquivo, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    # Upload para Cloudinary
+    cloudinary_service = CloudinaryService()
+    logo_url = await cloudinary_service.upload_image(
+        contents, 
+        f"empresas/{current_empresa.id}/logo"
+    )
     
-    # URL COMPLETA
-    url_imagem = f"{settings.BASE_URL}/uploads/empresas/{nome_arquivo}"
-    current_empresa.logo = url_imagem
+    # Salvar URL no banco
+    current_empresa.logo = logo_url
     db.commit()
     
-    return {"url": url_imagem, "message": "Logo atualizada"}
+    return {"url": logo_url, "message": "Logo atualizada com sucesso!"}
 
-@router.delete("/me/logo")
-def remover_logo(
-    current_empresa: Empresa = Depends(get_current_empresa),
-    db: Session = Depends(get_db)
-):
-    """Remove a logo da empresa"""
-    
-    if current_empresa.logo and current_empresa.logo.startswith('/uploads/'):
-        caminho_arquivo = current_empresa.logo[1:]
-        if os.path.exists(caminho_arquivo):
-            os.remove(caminho_arquivo)
-    
-    current_empresa.logo = None
-    db.commit()
-    
-    return {"message": "Logo removida"}
 
 @router.post("/me/upload-capa")
 async def upload_capa(
@@ -202,22 +190,37 @@ async def upload_capa(
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
+    # Validar se é imagem
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
     
-    extensao = file.filename.split('.')[-1]
-    nome_arquivo = f"capa_{current_empresa.id}_{uuid.uuid4()}.{extensao}"
-    caminho_arquivo = f"uploads/empresas/{nome_arquivo}"
+    # Ler o conteúdo do arquivo
+    contents = await file.read()
     
-    with open(caminho_arquivo, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    # Upload para Cloudinary
+    cloudinary_service = CloudinaryService()
+    capa_url = await cloudinary_service.upload_image(
+        contents, 
+        f"empresas/{current_empresa.id}/capa"
+    )
     
-    # URL COMPLETA
-    url_imagem = f"{settings.BASE_URL}/uploads/empresas/{nome_arquivo}"
-    current_empresa.foto_capa = url_imagem
+    # Salvar URL no banco
+    current_empresa.foto_capa = capa_url
     db.commit()
     
-    return {"url": url_imagem, "message": "Capa atualizada"}
+    return {"url": capa_url, "message": "Capa atualizada com sucesso!"}
+
+@router.delete("/me/logo")
+def remover_logo(
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """Remove a logo da empresa"""
+    # Só remove a referência no banco (Cloudinary gerencia o arquivo)
+    current_empresa.logo = None
+    db.commit()
+    
+    return {"message": "Logo removida"}
 
 @router.delete("/me/capa")
 def remover_capa(
@@ -225,12 +228,7 @@ def remover_capa(
     db: Session = Depends(get_db)
 ):
     """Remove a foto de capa da empresa"""
-    
-    if current_empresa.foto_capa and current_empresa.foto_capa.startswith('/uploads/'):
-        caminho_arquivo = current_empresa.foto_capa[1:]
-        if os.path.exists(caminho_arquivo):
-            os.remove(caminho_arquivo)
-    
+    # Só remove a referência no banco (Cloudinary gerencia o arquivo)
     current_empresa.foto_capa = None
     db.commit()
     

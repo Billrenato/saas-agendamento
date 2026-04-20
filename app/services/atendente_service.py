@@ -38,14 +38,20 @@ class AtendenteService:
             return self.atendente_repo.get_by_empresa_com_servicos(empresa_id)
         return self.atendente_repo.get_by_empresa(empresa_id)
     
-    def get_atendente(self, atendente_id: int, empresa_id: int) -> Optional[Atendente]:
+    def get_atendente_by_empresa(self, atendente_id: int, empresa_id: int) -> Optional[Atendente]:
+        """Busca atendente por ID e empresa (privado)"""
         atendente = self.atendente_repo.get(atendente_id)
         if not atendente or atendente.empresa_id != empresa_id:
             return None
         return atendente
     
+
+    def get_atendente(self, atendente_id: int) -> Optional[Atendente]:
+        """Busca atendente por ID (público)"""
+        return self.atendente_repo.get(atendente_id)
+
     def update_atendente(self, atendente_id: int, empresa_id: int, data: AtendenteUpdate) -> Optional[Atendente]:
-        atendente = self.get_atendente(atendente_id, empresa_id)
+        atendente = self.get_atendente_by_empresa(atendente_id, empresa_id)  # 👈 CORRIGIDO
         if not atendente:
             return None
         
@@ -57,18 +63,18 @@ class AtendenteService:
             self.atendente_repo.sync_servicos(atendente_id, data.servico_ids)
         
         return atendente
+
     
     def delete_atendente(self, atendente_id: int, empresa_id: int) -> bool:
-        atendente = self.get_atendente(atendente_id, empresa_id)
+        atendente = self.get_atendente_by_empresa(atendente_id, empresa_id)  # 👈 CORRIGIDO
         if not atendente:
             return False
         
-        # Soft delete (apenas desativa)
         self.atendente_repo.update(atendente_id, ativo=False)
         return True
-    
+        
     def get_servicos_do_atendente(self, atendente_id: int, empresa_id: int) -> List[int]:
-        atendente = self.get_atendente(atendente_id, empresa_id)
+        atendente = self.get_atendente_by_empresa(atendente_id, empresa_id)  # 👈 CORRIGIDO
         if not atendente:
             return []
         return self.atendente_repo.get_servicos_do_atendente(atendente_id)
