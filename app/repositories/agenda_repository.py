@@ -33,8 +33,7 @@ class AgendaRepository(BaseRepository[Agenda]):
             )
             if atendente_id:
                 query = query.filter(Agenda.atendente_id == atendente_id)
-            else:
-                query = query.filter(Agenda.atendente_id.is_(None))
+            # 👈 REMOVA O ELSE! Não filtrar por NULL!
             
             excecao = query.first()
             if excecao:
@@ -49,8 +48,7 @@ class AgendaRepository(BaseRepository[Agenda]):
         
         if atendente_id:
             query = query.filter(Agenda.atendente_id == atendente_id)
-        else:
-            query = query.filter(Agenda.atendente_id.is_(None))
+        # 👈 REMOVA O ELSE! Não filtrar por NULL!
         
         return query.first()
     
