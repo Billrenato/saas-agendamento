@@ -16,6 +16,7 @@ import shutil
 import uuid
 import os
 from app.core.config import settings
+from app.services.cloudinary_service import CloudinaryService
 
 router = APIRouter()
 
