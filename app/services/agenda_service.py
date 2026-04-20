@@ -138,58 +138,89 @@ class AgendaService:
         
         print(f"✅ [4] Agenda encontrada: ID={agenda.id}, hora_inicio={agenda.hora_inicio}, hora_fim={agenda.hora_fim}")
         
-        # 3. Definir duração do serviço
-        duracao_minutos = 30
+        # 3. Definir duração do serviço (CORRIGIDO - com fallback seguro)
+        duracao_minutos = 30  # duração padrão
         if servico_id:
-            servico_repo = ServicoRepository(self.agenda_repo.db)
-            servico = servico_repo.get(servico_id)
-            if servico and servico.duracao_minutos:
-                duracao_minutos = servico.duracao_minutos
-                print(f"✅ [5] Serviço duração: {duracao_minutos} minutos")
-            else:
-                print(f"⚠️ [5] Serviço ID {servico_id} não encontrado")
+            try:
+                servico_repo = ServicoRepository(self.agenda_repo.db)
+                servico = servico_repo.get(servico_id)
+                if servico and servico.duracao_minutos and servico.duracao_minutos > 0:
+                    duracao_minutos = servico.duracao_minutos
+                    print(f"✅ [5] Serviço ID {servico_id} encontrado, duração: {duracao_minutos} minutos")
+                else:
+                    print(f"⚠️ [5] Serviço ID {servico_id} não encontrado ou sem duração. Usando padrão: {duracao_minutos} minutos")
+            except Exception as e:
+                print(f"❌ [5] Erro ao buscar serviço {servico_id}: {e}. Usando duração padrão: {duracao_minutos} minutos")
+        else:
+            print(f"🔍 [5] Nenhum serviço informado, usando duração padrão: {duracao_minutos} minutos")
         
         # 4. Buscar agendamentos do dia
         agendamento_repo = AgendamentoRepository(self.agenda_repo.db)
         
-        if atendente_id:
-            agendamentos = agendamento_repo.get_by_atendente_e_data(empresa_id, atendente_id, data_obj)
-            print(f"📅 [6] Encontrados {len(agendamentos)} agendamentos para o atendente {atendente_id}")
-        else:
-            agendamentos = agendamento_repo.get_by_data(empresa_id, data_obj)
-            print(f"📅 [6] Encontrados {len(agendamentos)} agendamentos totais")
+        try:
+            if atendente_id:
+                agendamentos = agendamento_repo.get_by_atendente_e_data(empresa_id, atendente_id, data_obj)
+                print(f"📅 [6] Encontrados {len(agendamentos)} agendamentos para o atendente {atendente_id}")
+            else:
+                agendamentos = agendamento_repo.get_by_data(empresa_id, data_obj)
+                print(f"📅 [6] Encontrados {len(agendamentos)} agendamentos totais")
+        except Exception as e:
+            print(f"❌ [6] Erro ao buscar agendamentos: {e}")
+            agendamentos = []
         
         # 5. Gerar horários disponíveis
         horarios = []
+        
+        # Verificar se agenda tem horários válidos
+        if not agenda.hora_inicio or not agenda.hora_fim:
+            print(f"⚠️ [7] Agenda sem horário de início ou fim válido")
+            return []
+        
         hora_atual = datetime.combine(data_date, agenda.hora_inicio)
         hora_fim = datetime.combine(data_date, agenda.hora_fim)
         
-        print(f"⏰ [7] Gerando horários entre {hora_atual} e {hora_fim}")
+        print(f"⏰ [7] Gerando horários entre {hora_atual.strftime('%H:%M')} e {hora_fim.strftime('%H:%M')}")
         
         intervalo_inicio = None
         intervalo_fim = None
         if agenda.intervalo_inicio and agenda.intervalo_fim:
             intervalo_inicio = datetime.combine(data_date, agenda.intervalo_inicio)
             intervalo_fim = datetime.combine(data_date, agenda.intervalo_fim)
-            print(f"🍽️ Intervalo: {intervalo_inicio} - {intervalo_fim}")
+            print(f"🍽️ Intervalo de almoço: {intervalo_inicio.strftime('%H:%M')} - {intervalo_fim.strftime('%H:%M')}")
         
+        passo_minutos = 30
+        count = 0
         while hora_atual + timedelta(minutes=duracao_minutos) <= hora_fim:
+            count += 1
+            if count > 100:  # segurança para loop infinito
+                print(f"⚠️ Loop excedeu 100 iterações, parando")
+                break
+            
+            # Verificar intervalo de almoço
             if intervalo_inicio and intervalo_fim and intervalo_inicio <= hora_atual < intervalo_fim:
-                print(f"⏭️ Pulando intervalo: {hora_atual}")
+                print(f"⏭️ Pulando intervalo de almoço: {hora_atual.strftime('%H:%M')}")
                 hora_atual = intervalo_fim
                 continue
             
+            # Verificar conflitos
             conflito = False
             for agendamento in agendamentos:
-                ag_fim = agendamento.data_hora + timedelta(minutes=agendamento.servico.duracao_minutos)
-                if (hora_atual < ag_fim and hora_atual + timedelta(minutes=duracao_minutos) > agendamento.data_hora):
-                    conflito = True
-                    break
+                try:
+                    ag_fim = agendamento.data_hora + timedelta(minutes=agendamento.servico.duracao_minutos)
+                    if (hora_atual < ag_fim and hora_atual + timedelta(minutes=duracao_minutos) > agendamento.data_hora):
+                        conflito = True
+                        break
+                except Exception as e:
+                    print(f"⚠️ Erro ao verificar conflito com agendamento {agendamento.id}: {e}")
+                    continue
             
             if not conflito:
                 horarios.append(hora_atual.strftime("%H:%M"))
             
-            hora_atual += timedelta(minutes=30)
+            hora_atual += timedelta(minutes=passo_minutos)
         
         print(f"🎉 [8] Total de horários disponíveis: {len(horarios)}")
+        if horarios:
+            print(f"📋 Horários: {horarios[:10]}...")  # mostra os primeiros 10
+        
         return horarios
