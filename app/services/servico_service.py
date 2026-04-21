@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.repositories.servico_repository import ServicoRepository
-from app.schemas.servico import ServicoCreate
+from app.schemas.servico import ServicoCreate, ServicoUpdate
 from app.models.servico import Servico
 from typing import List, Optional
 
@@ -29,12 +29,22 @@ class ServicoService:
             return None
         return servico
     
-    def update_servico(self, servico_id: int, empresa_id: int, servico_data: ServicoCreate) -> Optional[Servico]:
+    def update_servico(self, servico_id: int, empresa_id: int, servico_data: ServicoUpdate) -> Optional[Servico]:
+        """
+        Atualiza um serviço existente preservando a imagem se não for alterada
+        """
         servico = self.get_servico(servico_id, empresa_id)
         if not servico:
             return None
         
-        return self.servico_repo.update(servico_id, **servico_data.dict())
+        # 🔥 IMPORTANTE: Preservar a imagem existente se não veio uma nova
+        update_dict = servico_data.dict(exclude_unset=True)
+        
+        # Se a imagem não foi enviada no update, mantém a existente
+        if 'imagem' not in update_dict or update_dict['imagem'] is None:
+            update_dict['imagem'] = servico.imagem
+        
+        return self.servico_repo.update(servico_id, **update_dict)
     
     def delete_servico(self, servico_id: int, empresa_id: int) -> bool:
         servico = self.get_servico(servico_id, empresa_id)

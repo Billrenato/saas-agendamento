@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.servico_service import ServicoService
-from app.schemas.servico import ServicoCreate, ServicoResponse
 from app.api.v1.deps import get_current_empresa
 from app.models.empresa import Empresa
 from app.models.servico import Servico
@@ -17,6 +16,7 @@ import uuid
 import os
 from app.core.config import settings
 from app.services.cloudinary_service import CloudinaryService
+from app.schemas.servico import ServicoCreate, ServicoUpdate, ServicoResponse 
 
 router = APIRouter()
 
@@ -68,7 +68,7 @@ def get_servico(
 @router.put("/{servico_id}", response_model=ServicoResponse)
 def update_servico(
     servico_id: int,
-    servico_data: ServicoCreate,
+    servico_data: ServicoUpdate,  # ← MUDE de ServicoCreate para ServicoUpdate
     current_empresa: Empresa = Depends(get_current_empresa),
     db: Session = Depends(get_db)
 ):
