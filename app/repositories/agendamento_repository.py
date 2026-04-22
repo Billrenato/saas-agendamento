@@ -29,6 +29,8 @@ class AgendamentoRepository(BaseRepository[Agendamento]):
     # 👇 NOVO MÉTODO: Buscar agendamentos por atendente e data
     # app/repositories/agendamento_repository.py - ADICIONE ESTE MÉTODO NO FINAL
 
+    # app/repositories/agendamento_repository.py
+
     def get_by_atendente_e_data(self, empresa_id: int, atendente_id: int, data: datetime) -> List[Agendamento]:
         """Busca agendamentos de um atendente específico em uma data"""
         from datetime import datetime as dt

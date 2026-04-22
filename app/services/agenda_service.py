@@ -125,7 +125,7 @@ class AgendaService:
         
         print(f"🔍 [1] Data: {data_date}, dia_semana: {dia_semana}")
         
-        # 🔥 AGORA RETORNA UMA LISTA de agendas
+        # Buscar agendas do dia
         agendas = self.agenda_repo.get_by_dia_semana(empresa_id, dia_semana, data_date, atendente_id)
         
         if not agendas:
@@ -145,59 +145,72 @@ class AgendaService:
             agendamentos = agendamento_repo.get_by_data(empresa_id, data_obj)
             print(f"📅 [4] Encontrados {len(agendamentos)} agendamentos totais")
         
-        # Coletar todos os horários ocupados
-        horarios_ocupados = set()
-        for agendamento in agendamentos:
-            hora_str = agendamento.data_hora.strftime("%H:%M")
-            horarios_ocupados.add(hora_str)
-            print(f"   - Ocupado: {hora_str}")
+        # Obter duração do serviço
+        duracao_servico = 30  # padrão
+        if servico_id:
+            from app.repositories.servico_repository import ServicoRepository
+            servico_repo = ServicoRepository(self.agenda_repo.db)
+            servico = servico_repo.get(servico_id)
+            if servico:
+                duracao_servico = servico.duracao_minutos
+                print(f"⏱️ [5] Duração do serviço: {duracao_servico} min")
         
-        # Gerar horários disponíveis para cada agenda
+        # Criar lista de intervalos ocupados (considerando duração do serviço)
+        intervalos_ocupados = []
+        for ag in agendamentos:
+            inicio = ag.data_hora
+            fim = inicio + timedelta(minutes=ag.servico.duracao_minutos if hasattr(ag, 'servico') and ag.servico else duracao_servico)
+            intervalos_ocupados.append((inicio, fim))
+            print(f"   - Ocupado: {inicio.strftime('%H:%M')} até {fim.strftime('%H:%M')}")
+        
+        # Gerar horários disponíveis
         todos_horarios = []
+        TEMPO_ENTRE_AGENDAMENTOS = 15  # minutos de intervalo entre atendimentos
         
         for agenda in agendas:
             print(f"📋 Processando agenda: ID={agenda.id}, inicio={agenda.hora_inicio}, fim={agenda.hora_fim}")
             
-            # Gerar horários
             hora_atual = datetime.combine(data_obj.date(), agenda.hora_inicio)
             hora_fim = datetime.combine(data_obj.date(), agenda.hora_fim)
             
-            duracao_padrao = 30
-            if servico_id:
-                from app.repositories.servico_repository import ServicoRepository
-                servico_repo = ServicoRepository(self.agenda_repo.db)
-                servico = servico_repo.get(servico_id)
-                if servico:
-                    duracao_padrao = servico.duracao_minutos
-                    print(f"⏱️ [5] Serviço ID {servico_id} encontrado, duração: {duracao_padrao} min")
-                else:
-                    print(f"⚠️ [5] Serviço ID {servico_id} NÃO encontrado!")
-            else:
-                print(f"⏱️ [5] Nenhum serviço informado, usando duração padrão: 30 min")
-            
+            # Intervalo de almoço
             intervalo_inicio = None
             intervalo_fim = None
             if agenda.intervalo_inicio and agenda.intervalo_fim:
                 intervalo_inicio = datetime.combine(data_obj.date(), agenda.intervalo_inicio)
                 intervalo_fim = datetime.combine(data_obj.date(), agenda.intervalo_fim)
-                print(f"🍽️ [6] Intervalo: {intervalo_inicio.strftime('%H:%M')} - {intervalo_fim.strftime('%H:%M')}")
+                print(f"🍽️ [6] Intervalo de almoço: {intervalo_inicio.strftime('%H:%M')} - {intervalo_fim.strftime('%H:%M')}")
             
             print(f"⏰ [7] Gerando horários entre {hora_atual.strftime('%H:%M')} e {hora_fim.strftime('%H:%M')}")
             
-            while hora_atual + timedelta(minutes=duracao_padrao) <= hora_fim:
+            # Gerar horários a cada 30 minutos (independente da duração do serviço)
+            while hora_atual + timedelta(minutes=duracao_servico) <= hora_fim:
+                hora_fim_servico = hora_atual + timedelta(minutes=duracao_servico)
+                
                 # Verificar intervalo de almoço
                 if intervalo_inicio and intervalo_fim:
-                    if intervalo_inicio <= hora_atual < intervalo_fim:
+                    # Se o horário começa antes do intervalo e termina dentro ou depois
+                    if hora_atual < intervalo_fim and hora_fim_servico > intervalo_inicio:
+                        # Pular para o fim do intervalo
                         hora_atual = intervalo_fim
                         continue
                 
-                hora_str = hora_atual.strftime("%H:%M")
+                # Verificar se o horário está ocupado
+                conflito = False
+                for inicio_ocupado, fim_ocupado in intervalos_ocupados:
+                    # Verifica se há sobreposição
+                    if not (hora_fim_servico <= inicio_ocupado or hora_atual >= fim_ocupado):
+                        conflito = True
+                        break
                 
-                # Verificar se horário está ocupado
-                if hora_str not in horarios_ocupados:
-                    todos_horarios.append(hora_str)
+                if not conflito:
+                    todos_horarios.append(hora_atual.strftime("%H:%M"))
                 
+                # Avançar para o próximo horário (a cada 30 minutos, não baseado na duração do serviço)
                 hora_atual += timedelta(minutes=30)
+            
+            # Se ainda temos tempo no final do expediente, verificar último horário
+            # (já foi verificado no loop)
         
         # Remover duplicatas e ordenar
         todos_horarios = sorted(list(set(todos_horarios)))
