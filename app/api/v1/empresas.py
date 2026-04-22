@@ -67,6 +67,7 @@ def get_horarios_disponiveis(
     empresa_id: int,
     data: str,
     servico_id: int = None,
+    atendente_id: int = None,  # ← ADICIONE ESTA LINHA
     db: Session = Depends(get_db)
 ):
     """
@@ -75,7 +76,12 @@ def get_horarios_disponiveis(
     from app.services.agenda_service import AgendaService
     
     agenda_service = AgendaService(db)
-    horarios = agenda_service.get_horarios_disponiveis(empresa_id, data, servico_id)
+    horarios = agenda_service.get_horarios_disponiveis(
+        empresa_id, 
+        data, 
+        servico_id, 
+        atendente_id  # ← PASSE O PARÂMETRO
+    )
     
     return {"horarios": horarios}
 

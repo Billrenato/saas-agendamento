@@ -27,18 +27,20 @@ class AgendamentoRepository(BaseRepository[Agendamento]):
         ).all()
     
     # 👇 NOVO MÉTODO: Buscar agendamentos por atendente e data
+    # app/repositories/agendamento_repository.py - ADICIONE ESTE MÉTODO NO FINAL
+
     def get_by_atendente_e_data(self, empresa_id: int, atendente_id: int, data: datetime) -> List[Agendamento]:
         """Busca agendamentos de um atendente específico em uma data"""
-        start = datetime(data.year, data.month, data.day, 0, 0, 0)
-        end = datetime(data.year, data.month, data.day, 23, 59, 59)
+        from datetime import datetime as dt
+        start_of_day = dt.combine(data.date(), dt.min.time())
+        end_of_day = dt.combine(data.date(), dt.max.time())
+        
         return self.db.query(Agendamento).filter(
-            and_(
-                Agendamento.empresa_id == empresa_id,
-                Agendamento.atendente_id == atendente_id,
-                Agendamento.data_hora >= start,
-                Agendamento.data_hora <= end,
-                Agendamento.status.in_([StatusAgendamento.PENDENTE, StatusAgendamento.ACEITO])
-            )
+            Agendamento.empresa_id == empresa_id,
+            Agendamento.atendente_id == atendente_id,
+            Agendamento.data_hora >= start_of_day,
+            Agendamento.data_hora <= end_of_day,
+            Agendamento.status.in_(['pendente', 'aceito'])
         ).all()
     
     # 👇 MÉTODO MODIFICADO: check_conflict agora aceita atendente_id

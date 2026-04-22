@@ -112,10 +112,12 @@ class AgendaService:
         
         return self.agenda_repo.delete(agenda_id)
     
+    # app/services/agenda_service.py - SUBSTITUA O MÉTODO get_horarios_disponiveis
+
     def get_horarios_disponiveis(self, empresa_id: int, data: str, servico_id: int = None, atendente_id: int = None) -> List[str]:
         from datetime import datetime, timedelta
         
-        print(f"🔍 [INICIO] Buscando horários para empresa {empresa_id}, data {data}")
+        print(f"🔍 [INICIO] Buscando horários para empresa {empresa_id}, data {data}, atendente_id {atendente_id}")
         
         data_obj = datetime.strptime(data, "%Y-%m-%d")
         data_date = data_obj.date()
@@ -123,14 +125,14 @@ class AgendaService:
         
         print(f"🔍 [1] Data: {data_date}, dia_semana: {dia_semana}")
         
-        # Buscar agenda do dia
-        agenda = self.agenda_repo.get_by_dia_semana(empresa_id, dia_semana, data_date, atendente_id)
+        # 🔥 AGORA RETORNA UMA LISTA de agendas
+        agendas = self.agenda_repo.get_by_dia_semana(empresa_id, dia_semana, data_date, atendente_id)
         
-        if not agenda:
+        if not agendas:
             print(f"⚠️ [2] NENHUMA agenda encontrada para {data_date}")
             return []
         
-        print(f"✅ [3] Agenda encontrada: ID={agenda.id}, hora_inicio={agenda.hora_inicio}, hora_fim={agenda.hora_fim}")
+        print(f"✅ [3] Encontradas {len(agendas)} agenda(s)")
         
         # Buscar agendamentos do dia
         from app.repositories.agendamento_repository import AgendamentoRepository
@@ -143,51 +145,64 @@ class AgendaService:
             agendamentos = agendamento_repo.get_by_data(empresa_id, data_obj)
             print(f"📅 [4] Encontrados {len(agendamentos)} agendamentos totais")
         
-        # Gerar horários
-        horarios = []
-        hora_atual = datetime.combine(data_obj.date(), agenda.hora_inicio)
-        hora_fim = datetime.combine(data_obj.date(), agenda.hora_fim)
+        # Coletar todos os horários ocupados
+        horarios_ocupados = set()
+        for agendamento in agendamentos:
+            hora_str = agendamento.data_hora.strftime("%H:%M")
+            horarios_ocupados.add(hora_str)
+            print(f"   - Ocupado: {hora_str}")
         
-        duracao_padrao = 30
-        if servico_id:
-            from app.repositories.servico_repository import ServicoRepository
-            servico_repo = ServicoRepository(self.agenda_repo.db)
-            servico = servico_repo.get(servico_id)
-            if servico:
-                duracao_padrao = servico.duracao_minutos
-                print(f"⏱️ [5] Serviço ID {servico_id} encontrado, duração: {duracao_padrao} min")
+        # Gerar horários disponíveis para cada agenda
+        todos_horarios = []
+        
+        for agenda in agendas:
+            print(f"📋 Processando agenda: ID={agenda.id}, inicio={agenda.hora_inicio}, fim={agenda.hora_fim}")
+            
+            # Gerar horários
+            hora_atual = datetime.combine(data_obj.date(), agenda.hora_inicio)
+            hora_fim = datetime.combine(data_obj.date(), agenda.hora_fim)
+            
+            duracao_padrao = 30
+            if servico_id:
+                from app.repositories.servico_repository import ServicoRepository
+                servico_repo = ServicoRepository(self.agenda_repo.db)
+                servico = servico_repo.get(servico_id)
+                if servico:
+                    duracao_padrao = servico.duracao_minutos
+                    print(f"⏱️ [5] Serviço ID {servico_id} encontrado, duração: {duracao_padrao} min")
+                else:
+                    print(f"⚠️ [5] Serviço ID {servico_id} NÃO encontrado!")
             else:
-                print(f"⚠️ [5] Serviço ID {servico_id} NÃO encontrado!")
-        else:
-            print(f"⏱️ [5] Nenhum serviço informado, usando duração padrão: 30 min")
-        
-        intervalo_inicio = None
-        intervalo_fim = None
-        if agenda.intervalo_inicio and agenda.intervalo_fim:
-            intervalo_inicio = datetime.combine(data_obj.date(), agenda.intervalo_inicio)
-            intervalo_fim = datetime.combine(data_obj.date(), agenda.intervalo_fim)
-            print(f"🍽️ [6] Intervalo de almoço: {intervalo_inicio} - {intervalo_fim}")
-        
-        print(f"⏰ [7] Gerando horários entre {hora_atual} e {hora_fim}")
-        
-        while hora_atual + timedelta(minutes=duracao_padrao) <= hora_fim:
-            if intervalo_inicio and intervalo_fim:
-                if intervalo_inicio <= hora_atual < intervalo_fim:
-                    hora_atual = intervalo_fim
-                    continue
+                print(f"⏱️ [5] Nenhum serviço informado, usando duração padrão: 30 min")
             
-            conflito = False
-            for agendamento in agendamentos:
-                agendamento_fim = agendamento.data_hora + timedelta(minutes=agendamento.servico.duracao_minutos)
-                if (hora_atual < agendamento_fim and 
-                    hora_atual + timedelta(minutes=duracao_padrao) > agendamento.data_hora):
-                    conflito = True
-                    break
+            intervalo_inicio = None
+            intervalo_fim = None
+            if agenda.intervalo_inicio and agenda.intervalo_fim:
+                intervalo_inicio = datetime.combine(data_obj.date(), agenda.intervalo_inicio)
+                intervalo_fim = datetime.combine(data_obj.date(), agenda.intervalo_fim)
+                print(f"🍽️ [6] Intervalo: {intervalo_inicio.strftime('%H:%M')} - {intervalo_fim.strftime('%H:%M')}")
             
-            if not conflito:
-                horarios.append(hora_atual.strftime("%H:%M"))
+            print(f"⏰ [7] Gerando horários entre {hora_atual.strftime('%H:%M')} e {hora_fim.strftime('%H:%M')}")
             
-            hora_atual += timedelta(minutes=30)
+            while hora_atual + timedelta(minutes=duracao_padrao) <= hora_fim:
+                # Verificar intervalo de almoço
+                if intervalo_inicio and intervalo_fim:
+                    if intervalo_inicio <= hora_atual < intervalo_fim:
+                        hora_atual = intervalo_fim
+                        continue
+                
+                hora_str = hora_atual.strftime("%H:%M")
+                
+                # Verificar se horário está ocupado
+                if hora_str not in horarios_ocupados:
+                    todos_horarios.append(hora_str)
+                
+                hora_atual += timedelta(minutes=30)
         
-        print(f"🎉 [8] TOTAL de horários disponíveis: {len(horarios)}")
-        return horarios
+        # Remover duplicatas e ordenar
+        todos_horarios = sorted(list(set(todos_horarios)))
+        
+        print(f"🎉 [8] TOTAL de horários disponíveis: {len(todos_horarios)}")
+        print(f"📋 Horários: {todos_horarios}")
+        
+        return todos_horarios

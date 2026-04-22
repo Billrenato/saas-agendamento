@@ -23,8 +23,11 @@ class AgendaRepository(BaseRepository[Agenda]):
             Agenda.atendente_id == atendente_id
         ).all()
     
-    def get_by_dia_semana(self, empresa_id: int, dia_semana: int, data: Optional[date] = None, atendente_id: Optional[int] = None) -> Optional[Agenda]:
-        """Busca agenda por dia da semana ou data específica, podendo filtrar por atendente"""
+    def get_by_dia_semana(self, empresa_id: int, dia_semana: int, data: Optional[date] = None, atendente_id: Optional[int] = None) -> List[Agenda]:
+        """
+        Busca agenda por dia da semana ou data específica, podendo filtrar por atendente
+        Retorna UMA LISTA de agendas (pode ter vários atendentes)
+        """
         # Primeiro, verificar se existe exceção para esta data
         if data:
             query = self.db.query(Agenda).filter(
@@ -33,11 +36,10 @@ class AgendaRepository(BaseRepository[Agenda]):
             )
             if atendente_id:
                 query = query.filter(Agenda.atendente_id == atendente_id)
-            # 👈 REMOVA O ELSE! Não filtrar por NULL!
             
             excecao = query.first()
             if excecao:
-                return excecao
+                return [excecao]
         
         # Se não tem exceção, buscar configuração padrão por dia da semana
         query = self.db.query(Agenda).filter(
@@ -48,9 +50,9 @@ class AgendaRepository(BaseRepository[Agenda]):
         
         if atendente_id:
             query = query.filter(Agenda.atendente_id == atendente_id)
-        # 👈 REMOVA O ELSE! Não filtrar por NULL!
         
-        return query.first()
+        # Retorna TODAS as agendas do dia (pode ter vários atendentes)
+        return query.all()
     
     def get_by_data_especifica(self, empresa_id: int, data: date, atendente_id: Optional[int] = None) -> Optional[Agenda]:
         query = self.db.query(Agenda).filter(
@@ -60,7 +62,5 @@ class AgendaRepository(BaseRepository[Agenda]):
         
         if atendente_id:
             query = query.filter(Agenda.atendente_id == atendente_id)
-        else:
-            query = query.filter(Agenda.atendente_id.is_(None))
         
         return query.first()
