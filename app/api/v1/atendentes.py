@@ -158,3 +158,77 @@ def delete_atendente(
     
     if not result:
         raise HTTPException(status_code=404, detail="Atendente não encontrado")
+    
+
+
+# app/api/v1/atendentes.py - ADICIONE NO FINAL DO ARQUIVO
+
+from fastapi import UploadFile, File
+from app.services.cloudinary_service import CloudinaryService
+
+@router.post("/{atendente_id}/upload-foto")
+async def upload_foto_atendente(
+    atendente_id: int,
+    file: UploadFile = File(...),
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload da foto de um atendente
+    """
+    from app.models.atendente import Atendente
+    
+    # Verificar se atendente existe e pertence à empresa
+    atendente = db.query(Atendente).filter(
+        Atendente.id == atendente_id,
+        Atendente.empresa_id == current_empresa.id
+    ).first()
+    
+    if not atendente:
+        raise HTTPException(status_code=404, detail="Atendente não encontrado")
+    
+    # Validar tipo de arquivo
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Arquivo não é uma imagem")
+    
+    # Ler conteúdo
+    contents = await file.read()
+    
+    # Upload para Cloudinary
+    cloudinary_service = CloudinaryService()
+    foto_url = await cloudinary_service.upload_image(
+        contents, 
+        f"atendentes/{current_empresa.id}/{atendente_id}"
+    )
+    
+    # Salvar URL no banco
+    atendente.foto = foto_url
+    db.commit()
+    db.refresh(atendente)
+    
+    return {"url": foto_url, "message": "Foto do atendente atualizada com sucesso!"}
+
+@router.delete("/{atendente_id}/remover-foto")
+def remover_foto_atendente(
+    atendente_id: int,
+    current_empresa: Empresa = Depends(get_current_empresa),
+    db: Session = Depends(get_db)
+):
+    """
+    Remove a foto de um atendente
+    """
+    from app.models.atendente import Atendente
+    
+    atendente = db.query(Atendente).filter(
+        Atendente.id == atendente_id,
+        Atendente.empresa_id == current_empresa.id
+    ).first()
+    
+    if not atendente:
+        raise HTTPException(status_code=404, detail="Atendente não encontrado")
+    
+    # Só remove a referência no banco (Cloudinary gerencia o arquivo)
+    atendente.foto = None
+    db.commit()
+    
+    return {"message": "Foto removida com sucesso"}
