@@ -321,3 +321,89 @@ def get_empresa_by_slug(
 
 
 
+from app.schemas.empresa import EmpresaCreate, EmpresaUpdate, EmpresaResponse
+from app.utils.slugify import generate_unique_slug
+from app.core.security import hash_password  # ou sua função de hash
+
+# ============================================
+# ENDPOINTS DE CRIAÇÃO E ATUALIZAÇÃO (ADMIN)
+# ============================================
+
+@router.post("/", response_model=EmpresaResponse, status_code=status.HTTP_201_CREATED)
+def create_empresa(
+    empresa_data: EmpresaCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Cria uma nova empresa (endpoint admin)
+    """
+    # Verificar se email já existe
+    existing = db.query(Empresa).filter(Empresa.email == empresa_data.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email já cadastrado"
+        )
+    
+    # Criar nova empresa
+    nova_empresa = Empresa(
+        nome=empresa_data.nome,
+        email=empresa_data.email,
+        senha_hash=hash_password(empresa_data.senha),
+        telefone=empresa_data.telefone,
+        segmento=empresa_data.segmento,
+        endereco=empresa_data.endereco,
+        cidade=empresa_data.cidade,
+        estado=empresa_data.estado,
+        cep=empresa_data.cep,
+        descricao=empresa_data.descricao,
+        ativo=True
+    )
+    
+    db.add(nova_empresa)
+    db.flush()  # Para obter o ID
+    
+    # 🔥 GERAR SLUG AUTOMATICAMENTE
+    nova_empresa.slug = generate_unique_slug(db, Empresa, empresa_data.nome)
+    
+    db.commit()
+    db.refresh(nova_empresa)
+    
+    return nova_empresa
+
+
+@router.put("/{empresa_id}", response_model=EmpresaResponse)
+def update_empresa_admin(
+    empresa_id: int,
+    empresa_data: EmpresaUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Atualiza uma empresa (endpoint admin)
+    """
+    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not empresa:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Empresa não encontrada"
+        )
+    
+    # Se o nome foi alterado, atualizar o slug
+    nome_alterado = empresa_data.nome and empresa_data.nome != empresa.nome
+    
+    # Atualizar campos
+    for key, value in empresa_data.dict(exclude_unset=True).items():
+        if hasattr(empresa, key) and value is not None:
+            setattr(empresa, key, value)
+    
+    # Atualizar slug se o nome mudou
+    if nome_alterado:
+        empresa.slug = generate_unique_slug(db, Empresa, empresa_data.nome, empresa_id)
+    
+    db.commit()
+    db.refresh(empresa)
+    
+    return empresa
+
+
+
