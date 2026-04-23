@@ -323,11 +323,13 @@ def get_empresa_by_slug(
 
 from app.schemas.empresa import EmpresaCreate, EmpresaUpdate, EmpresaResponse
 from app.utils.slugify import generate_unique_slug
-from app.core.security import hash_password  # ou sua função de hash
+from app.core.security import get_password_hash# ou sua função de hash
 
 # ============================================
 # ENDPOINTS DE CRIAÇÃO E ATUALIZAÇÃO (ADMIN)
 # ============================================
+
+from app.core.security import get_password_hash  # ← USE ESTA
 
 @router.post("/", response_model=EmpresaResponse, status_code=status.HTTP_201_CREATED)
 def create_empresa(
@@ -345,11 +347,13 @@ def create_empresa(
             detail="Email já cadastrado"
         )
     
+    from app.utils.slugify import generate_unique_slug
+    
     # Criar nova empresa
     nova_empresa = Empresa(
         nome=empresa_data.nome,
         email=empresa_data.email,
-        senha_hash=hash_password(empresa_data.senha),
+        senha_hash=get_password_hash(empresa_data.senha),  # ← USANDO A FUNÇÃO CORRETA
         telefone=empresa_data.telefone,
         segmento=empresa_data.segmento,
         endereco=empresa_data.endereco,
@@ -370,40 +374,6 @@ def create_empresa(
     db.refresh(nova_empresa)
     
     return nova_empresa
-
-
-@router.put("/{empresa_id}", response_model=EmpresaResponse)
-def update_empresa_admin(
-    empresa_id: int,
-    empresa_data: EmpresaUpdate,
-    db: Session = Depends(get_db)
-):
-    """
-    Atualiza uma empresa (endpoint admin)
-    """
-    empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
-    if not empresa:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Empresa não encontrada"
-        )
-    
-    # Se o nome foi alterado, atualizar o slug
-    nome_alterado = empresa_data.nome and empresa_data.nome != empresa.nome
-    
-    # Atualizar campos
-    for key, value in empresa_data.dict(exclude_unset=True).items():
-        if hasattr(empresa, key) and value is not None:
-            setattr(empresa, key, value)
-    
-    # Atualizar slug se o nome mudou
-    if nome_alterado:
-        empresa.slug = generate_unique_slug(db, Empresa, empresa_data.nome, empresa_id)
-    
-    db.commit()
-    db.refresh(empresa)
-    
-    return empresa
 
 
 

@@ -264,13 +264,14 @@ def criar_empresa(
 ):
     """Cria uma nova empresa (apenas admin)"""
     from app.core.security import get_password_hash
+    from app.utils.slugify import generate_unique_slug  # ← ADICIONE
     
     # Verificar se email já existe
     existing = db.query(Empresa).filter(Empresa.email == data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email já cadastrado")
     
-    # Criar empresa - APENAS COM CAMPOS QUE EXISTEM NO SCHEMA
+    # Criar empresa
     empresa = Empresa(
         nome=data.nome,
         email=data.email,
@@ -282,11 +283,15 @@ def criar_empresa(
         estado=getattr(data, 'estado', None),
         cep=getattr(data, 'cep', None),
         descricao=getattr(data, 'descricao', None),
-        #site=getattr(data, 'site', None),  # 👈 COMENTE OU REMOVA
         ativo=True
     )
     
     db.add(empresa)
+    db.flush()  # ← Para obter o ID antes de salvar
+    
+    # 🔥 GERAR SLUG AUTOMATICAMENTE
+    empresa.slug = generate_unique_slug(db, Empresa, data.nome)
+    
     db.commit()
     db.refresh(empresa)
     
@@ -301,14 +306,22 @@ def atualizar_empresa(
     db: Session = Depends(get_db)
 ):
     """Atualiza uma empresa"""
+    from app.utils.slugify import generate_unique_slug  # ← ADICIONE
+    
     empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
     if not empresa:
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
     
+    # Verificar se o nome foi alterado
+    nome_antigo = empresa.nome
     update_data = data.model_dump(exclude_unset=True)
     
     for field, value in update_data.items():
         setattr(empresa, field, value)
+    
+    # 🔥 Se o nome mudou, atualizar o slug
+    if data.nome and data.nome != nome_antigo:
+        empresa.slug = generate_unique_slug(db, Empresa, data.nome, empresa_id)
     
     db.commit()
     db.refresh(empresa)
