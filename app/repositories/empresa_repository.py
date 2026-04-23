@@ -9,3 +9,6 @@ class EmpresaRepository(BaseRepository[Empresa]):
     
     def get_by_email(self, email: str) -> Optional[Empresa]:
         return self.db.query(Empresa).filter(Empresa.email == email).first()
+    
+    def get_by_slug(self, slug: str) -> Optional[Empresa]:
+        return self.db.query(Empresa).filter(Empresa.slug == slug).first()

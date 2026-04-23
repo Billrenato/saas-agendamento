@@ -38,6 +38,7 @@ class EmpresaCreate(EmpresaBase):
 
 class EmpresaResponse(EmpresaBase):
     id: int
+    slug: Optional[str] = None
     ativo: bool
     criado_em: datetime
     twilio_account_sid: Optional[str] = None

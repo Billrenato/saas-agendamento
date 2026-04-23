@@ -300,4 +300,24 @@ def update_whatsapp_messages(
     return {"message": "Mensagens atualizadas"}
 
 
+@router.get("/slug/{slug}", response_model=EmpresaResponse)
+def get_empresa_by_slug(
+    slug: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint público para obter dados de uma empresa pelo slug (nome amigável)
+    """
+    empresa_service = EmpresaService(db)
+    empresa = empresa_service.get_empresa_by_slug(slug)
+    
+    if not empresa:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Empresa não encontrada"
+        )
+    
+    return empresa
+
+
 

@@ -9,6 +9,7 @@ class Empresa(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, nullable=False)
+    slug = Column(String(255), unique=True, index=True, nullable=True)
     email = Column(String, unique=True, nullable=False, index=True)
     senha_hash = Column(String, nullable=False)
     telefone = Column(String, nullable=False)

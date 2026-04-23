@@ -12,3 +12,6 @@ class EmpresaService:
     
     def get_empresa_by_email(self, email: str) -> Optional[Empresa]:
         return self.empresa_repo.get_by_email(email)
+    
+    def get_empresa_by_slug(self, slug: str) -> Optional[Empresa]:
+        return self.empresa_repo.get_by_slug(slug)
